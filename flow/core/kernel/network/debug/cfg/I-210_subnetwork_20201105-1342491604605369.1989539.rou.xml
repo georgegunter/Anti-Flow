@@ -1,0 +1,10 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/routes_file.xsd">
+  <route id="route119257914_0" edges="119257914 119257908#0 119257908#1-AddedOnRampEdge 119257908#1 119257908#1-AddedOffRampEdge 119257908#2 119257908#3"/>
+  <route id="routeghost0_0" edges="ghost0 119257914 119257908#0 119257908#1-AddedOnRampEdge 119257908#1 119257908#1-AddedOffRampEdge 119257908#2 119257908#3"/>
+  <flow id="flow_00" route="routeghost0_0" type="human" departLane="0" departSpeed="25.5" begin="1" end="86400" vehsPerHour="2050.0"/>
+  <flow id="flow_10" route="routeghost0_0" type="human" departLane="1" departSpeed="25.5" begin="1" end="86400" vehsPerHour="2050.0"/>
+  <flow id="flow_20" route="routeghost0_0" type="human" departLane="2" departSpeed="25.5" begin="1" end="86400" vehsPerHour="2050.0"/>
+  <flow id="flow_30" route="routeghost0_0" type="human" departLane="3" departSpeed="25.5" begin="1" end="86400" vehsPerHour="2050.0"/>
+  <flow id="flow_40" route="routeghost0_0" type="human" departLane="4" departSpeed="25.5" begin="1" end="86400" vehsPerHour="2050.0"/>
+</routes>

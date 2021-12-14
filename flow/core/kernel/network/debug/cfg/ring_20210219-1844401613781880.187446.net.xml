@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- generated on Fri Feb 19 18:44:40 2021 by Eclipse SUMO netconvert Version 1.6.0
+<configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/netconvertConfiguration.xsd">
+
+    <input>
+        <node-files value="/Users/vanderbilt/Desktop/Research_2020/Traffic_Attack/flow/flow/core/kernel/network/debug/net/ring_20210219-1844401613781880.187446.nod.xml"/>
+        <edge-files value="/Users/vanderbilt/Desktop/Research_2020/Traffic_Attack/flow/flow/core/kernel/network/debug/net/ring_20210219-1844401613781880.187446.edg.xml"/>
+        <type-files value="/Users/vanderbilt/Desktop/Research_2020/Traffic_Attack/flow/flow/core/kernel/network/debug/net/ring_20210219-1844401613781880.187446.typ.xml"/>
+    </input>
+
+    <output>
+        <output-file value="/Users/vanderbilt/Desktop/Research_2020/Traffic_Attack/flow/flow/core/kernel/network/debug/cfg/ring_20210219-1844401613781880.187446.net.xml"/>
+    </output>
+
+    <junctions>
+        <no-internal-links value="false"/>
+        <no-turnarounds value="true"/>
+    </junctions>
+
+    <report>
+        <aggregate-warnings value="5"/>
+    </report>
+
+</configuration>

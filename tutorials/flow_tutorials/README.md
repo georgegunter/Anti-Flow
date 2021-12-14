@@ -2,8 +2,6 @@
 
 ## Setup
 
-These are the instructions forom the original Flow repository.
-
 1. Make sure you have Python 3 installed (we recommend using the [Anaconda
    Python distribution](https://www.continuum.io/downloads)).
 2. **Install Jupyter** with `pip install jupyter`. Verify that you can start
@@ -18,7 +16,7 @@ opened in a Jupyter notebook by running the following commands:
 
 ```shell
 source activate flow
-cd <Anti-Flow-path>/flow_tutorials/tutorials
+cd <flow-path>/tutorials
 jupyter-notebook
 ```
 

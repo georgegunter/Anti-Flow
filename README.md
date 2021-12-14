@@ -4,8 +4,9 @@ This repositoiry is built on the [Flow software package](https://github.com/flow
 ## Getting started
 
 To recreate simulations from "Compromised ACC vehicles can degrade current mixed-autonomy traffic
-performance while remaining stealthy against detection." run \examples\run_i24_adversarial.py to create attacked traffic.
+performance while remaining stealthy against detection." run \examples\full_network_attack.py to create attacked traffic.
 
+For a guide on how to set up an adversarial simulation environment see \tutorials.
 
 ## Installing flow
 

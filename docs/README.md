@@ -1,4 +1,4 @@
-This is the documentation folder for flow documentation.
+This is the documentation folder for the flow software. Currently, this is does not include documentation for Anti-Flow.
 
 Idea: fill this folder with instructions and links for 
 how to write documentation.

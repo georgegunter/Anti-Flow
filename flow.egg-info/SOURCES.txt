@@ -1,15 +1,6 @@
 README.md
-setup.cfg
 setup.py
 examples/__init__.py
-examples/load_sim_results.py
-examples/make_hist_comps.py
-examples/plot_ring_results.py
-examples/process_sim_results.py
-examples/run_follower_stopper_ring.py
-examples/run_i24_adversarial.py
-examples/run_ring_adversarial.py
-examples/rung_highway_adversarial.py
 examples/simulate.py
 examples/train.py
 flow/__init__.py
@@ -146,6 +137,7 @@ flow/visualize/__init__.py
 flow/visualize/capacity_diagram_generator.py
 flow/visualize/plot_ray_results.py
 flow/visualize/time_space_diagram.py
+flow/visualize/visualize_ring.py
 flow/visualize/visualizer_rllib.py
 tests/__init__.py
 tests/dummy_server.py

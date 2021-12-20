@@ -1,4 +1,4 @@
-name: flow
+name: anti_flow
 
 dependencies:
     - python==3.7.3

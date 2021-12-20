@@ -1,4 +1,4 @@
-import numpy as np
+# import numpy as np
 import matplotlib.pyplot as pt
 import sys
 
@@ -34,12 +34,12 @@ def get_sim_data_dict_ring(csv_path):
 				time = float(row[0])
 				if(time > 50):
 					curr_veh_data.append(row)
-				sys.stdout.write('\r'+'Veh id: '+curr_veh_id+ ' row: ' +str(row_num)+'\r')
+				# sys.stdout.write('\r'+'Veh id: '+curr_veh_id+ ' row: ' +str(row_num)+'\r')
 			row_num += 1
 
 		#Add the very last vehicle's information:
 		sim_dict[curr_veh_id] = curr_veh_data
-		sys.stdout.write('\r'+'Veh id: '+curr_veh_id+ ' row: ' +str(row_num)+'\r')
+		# sys.stdout.write('\r'+'Veh id: '+curr_veh_id+ ' row: ' +str(row_num)+'\r')
 		print('Data loaded.')
 	return sim_dict	
 
@@ -109,13 +109,13 @@ def make_ring_spacetime_fig(sim_data_dict=None,csv_path=None,ring_length=300):
 	positions_mod_ring_length = np.mod(positions,ring_length)
 
 	fontsize=15
-	pt.figure()
-	pt.subplot(1,2,1)
+	pt.figure(figsize=[15,7])
 	pt.title('Space time plot, ring length: '+str(ring_length),fontsize=fontsize)
 	pt.scatter(times,positions_mod_ring_length,c=speeds)
 	pt.ylabel('Position [m]',fontsize=fontsize)
 	pt.xlabel('Time [s]',fontsize=fontsize)
 	cbar = pt.colorbar(label='Speed [m/s]')
 	cbar.ax.tick_params(labelsize=10)
+	pt.show()
 
 

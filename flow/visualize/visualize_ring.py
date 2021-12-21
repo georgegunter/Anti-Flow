@@ -1,7 +1,7 @@
 # import numpy as np
 import matplotlib.pyplot as pt
 import sys
-
+import numpy as np
 import time
 from copy import deepcopy
 

@@ -7,7 +7,43 @@ from copy import deepcopy
 
 import csv
 
-def get_sim_data_dict_ring(csv_path):
+
+def get_sim_timeseries(csv_path,warmup_period = 0.0):
+	row_num = 1
+	curr_veh_id = 'id'
+	sim_dict = {}
+	curr_veh_data = []
+
+	with open(csv_path, newline='') as csvfile:
+		csvreader = csv.reader(csvfile, delimiter=',')
+		for row in csvreader:
+			if(row_num > 1):
+				# Don't read header
+				if(curr_veh_id != row[1]):
+					#Add in new data to the dictionary:
+					
+					#Store old data:
+					if(len(curr_veh_data)>0):
+						sim_dict[curr_veh_id] = np.array(curr_veh_data).astype(float)
+					#Rest where data is being stashed:
+					curr_veh_data = []
+					curr_veh_id = row[1] # Set new veh id
+					#Allocate space for storing:
+					sim_dict[curr_veh_id] = []
+
+				curr_veh_id = row[1]
+				time = float(row[0])
+				if(time > warmup_period):
+					data = [row[0],row[4],row[5],row[11],row[18],row[19]]
+					curr_veh_data.append(data)
+			row_num += 1
+
+		#Add the very last vehicle's information:
+		sim_dict[curr_veh_id] = np.array(curr_veh_data).astype(float)
+		print('Data loaded.')
+	return sim_dict
+
+def get_sim_data_dict_ring(csv_path,warmup_period=50):
 	row_num = 1
 	curr_veh_id = 'id'
 	sim_dict = {}
@@ -32,7 +68,7 @@ def get_sim_data_dict_ring(csv_path):
 
 				curr_veh_id = row[1]
 				time = float(row[0])
-				if(time > 50):
+				if(time > warmup_period):
 					curr_veh_data.append(row)
 				# sys.stdout.write('\r'+'Veh id: '+curr_veh_id+ ' row: ' +str(row_num)+'\r')
 			row_num += 1
@@ -118,4 +154,5 @@ def make_ring_spacetime_fig(sim_data_dict=None,csv_path=None,ring_length=300):
 	cbar.ax.tick_params(labelsize=10)
 	pt.show()
 
-
+def make_ring_spacetime_fig_multilane(sim_data_dict=None,csv_path=None,ring_length=300,num_lanes=2):
+	return None

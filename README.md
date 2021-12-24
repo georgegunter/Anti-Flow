@@ -41,15 +41,9 @@ Please be sure to cite not just Anti-Flow, but also Flow when using for academic
 
 Cite Anti-Flow here:
 
-FILL-IN
+Gunter, G., Li, H., Hojjati, A., Nice, M., Bunting, M., Gunter, C., Li, B., Sprinkle, J., & Work,  D. (2021). Compromised ACC vehicles can degrade current mixed-autonomy traffic performance while remaining stealthy against detection. arXiv preprint arXiv:2112.11986.
 
 Cite the original Flow repository using these papers:
 
 Wu, C., Kreidieh, A. R., Parvate, K., Vinitsky, E., & Bayen, A. M. (2021). Flow: A modular learning framework for mixed autonomy traffic. IEEE Transactions on Robotics.
-
-C. Wu, A. Kreidieh, K. Parvate, E. Vinitsky, A. Bayen, "Flow: Architecture and Benchmarking for Reinforcement Learning in Traffic Control," CoRR, vol. abs/1710.05465, 2017. [Online]. Available: https://arxiv.org/abs/1710.05465
-
-Vinitsky, E., Kreidieh, A., Le Flem, L., Kheterpal, N., Jang, K., Wu, F., ... & Bayen, A. M,  Benchmarks for reinforcement learning in mixed-autonomy traffic. In Conference on Robot Learning (pp. 399-409). Available: http://proceedings.mlr.press/v87/vinitsky18a.html
-
-
 

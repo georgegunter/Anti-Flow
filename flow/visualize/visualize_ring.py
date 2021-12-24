@@ -34,6 +34,7 @@ def get_sim_timeseries(csv_path,warmup_period = 0.0):
 				curr_veh_id = row[1]
 				time = float(row[0])
 				if(time > warmup_period):
+					# data = [time,speed,headway,accel,leader_speed,fuel_consumption]
 					data = [row[0],row[4],row[5],row[11],row[18],row[19]]
 					curr_veh_data.append(data)
 			row_num += 1

@@ -43,7 +43,7 @@ Cite Anti-Flow here:
 
 Gunter, G., Li, H., Hojjati, A., Nice, M., Bunting, M., Gunter, C., Li, B., Sprinkle, J., & Work,  D. (2021). Compromised ACC vehicles can degrade current mixed-autonomy traffic performance while remaining stealthy against detection. arXiv preprint arXiv:2112.11986.
 
-Cite the original Flow repository using these papers:
+Cite the Flow here:
 
 Wu, C., Kreidieh, A. R., Parvate, K., Vinitsky, E., & Bayen, A. M. (2021). Flow: A modular learning framework for mixed autonomy traffic. IEEE Transactions on Robotics.
 

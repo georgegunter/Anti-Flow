@@ -1,7 +1,7 @@
 import math
 import numpy as np
 
-from flow.controllers.base_controller import BaseController
+from Adversaries.controllers.base_controller import BaseController
 
 class ACC_Benign(BaseController):
 
@@ -415,7 +415,62 @@ class ACC_Switched_Controller_Attacked_Single(BaseController):
         # Not implemented...
         return self.a
 
+class FollowerStopper_Overreact(BaseController):
+    def __init__(self,
+                 veh_id,
+                 car_following_params,
+                 delay=0.0,
+                 noise=0.0,
+                 fail_safe=None,
+                 v_des=10.0,
+                 braking_period = 5.0,
+                 braking_rate = -2.0):
+        #Inherit the base controller:
+        BaseController.__init__(
+            self,
+            veh_id,
+            car_following_params,
+            delay=delay,
+            fail_safe=fail_safe,
+            noise=noise)
+        
+        self.braking_period = braking_period #How long the mAV brakes for
+        self.braking_rate = braking_rate #How hard the mAV brakes
+        self.curr_braking_period = 0.0 #Keeps track of braking
+        self.is_braking = False #Whether or not engaged in braking
+        self.v_des = v_des #If not braking, what speed the mAV tries to drive at
+                
+    def get_accel(self, env):
+        lead_id = env.k.vehicle.get_leader(self.veh_id) #Who is the leader
+        v_l = env.k.vehicle.get_speed(lead_id) #Leader speed
+        v = env.k.vehicle.get_speed(self.veh_id) #vehicle's own speed
+        s = env.k.vehicle.get_headway(self.veh_id) #inter-vehicle spacing to leader
+        u = 0.0
+        
+        #If the vehicle gets too close it brakes for a long period of time:
+        
+        timegap = s/(v+.01)
 
+        if(timegap < 2.0 and not self.is_braking):
+            print('Braking engaged, time '+str(env.sim_step*env.step_counter))
+            self.is_braking = True
 
+        #Engaged in braking:    
+        if(self.is_braking):
+            u = self.braking_rate
+            self.curr_braking_period += env.sim_step
 
+            if(self.curr_braking_period>=self.braking_period):
+                self.curr_braking_period = 0.0
+                self.is_braking = False
+                
+        #Managing speed:
+        else:
+            u = 0.1*(self.v_des - v) #Simple proportional speed control
+            
+        return u #return the acceleration that is set above.
+        
+    def get_custom_accel(self, v, v_l, s):
+        """Leave as 0.0 since behavior has memory"""
+        return 0.0
 

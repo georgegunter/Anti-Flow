@@ -8,7 +8,7 @@ from copy import deepcopy
 import csv
 
 
-def get_sim_timeseries(csv_path,warmup_period = 0.0):
+def get_sim_timeseries(csv_path,warmup_period=0.0):
 	row_num = 1
 	curr_veh_id = 'id'
 	sim_dict = {}
@@ -44,7 +44,7 @@ def get_sim_timeseries(csv_path,warmup_period = 0.0):
 		print('Data loaded.')
 	return sim_dict
 
-def get_sim_data_dict_ring(csv_path,warmup_period=50):
+def get_sim_data_dict_ring(csv_path,warmup_period=50.0):
 	row_num = 1
 	curr_veh_id = 'id'
 	sim_dict = {}
@@ -114,12 +114,16 @@ def get_ring_positions(sim_data_dict,ring_length):
 
 	return ring_positions
 
-def stack_data_for_spacetime(sim_data_dict,ring_positions):
+def stack_data_for_spacetime(sim_data_dict,
+	ring_positions,
+	want_losses=False,
+	losses_dict=None):
+
 	veh_ids = list(sim_data_dict.keys())
 
 	times_list = [] 
 	pos_list = []
-	speed_list = [] 
+	speed_list = []
 
 	for veh_id in veh_ids:
 		#Look only at losses for those vehicles being measured:
@@ -128,12 +132,24 @@ def stack_data_for_spacetime(sim_data_dict,ring_positions):
 		time = temp_veh_data[:,0].astype(float) 
 		ring_pos = ring_positions[veh_id]
 		speed = temp_veh_data[:,4].astype(float) 
+
 		for i in range(len(time)): 
 			times_list.append(time[i]) 
 			pos_list.append(ring_pos[i]) 
 			speed_list.append(speed[i])
 
-	return np.array(times_list),np.array(pos_list),np.array(speed_list)
+	if(want_losses):
+		loss_list = []
+		for veh_id in veh_ids:
+			temp_veh_data = np.array(sim_data_dict[veh_id])
+			loss = losses_dict[veh_id]
+			for i in range(len(loss)):
+				loss_list.append(loss[i])
+
+		return np.array(times_list),np.array(pos_list),np.array(speed_list),np.array(loss_list)
+
+	else:
+		return np.array(times_list),np.array(pos_list),np.array(speed_list)
 
 def make_ring_spacetime_fig(sim_data_dict=None,csv_path=None,ring_length=300):
 	if(sim_data_dict is None):
@@ -157,3 +173,30 @@ def make_ring_spacetime_fig(sim_data_dict=None,csv_path=None,ring_length=300):
 
 def make_ring_spacetime_fig_multilane(sim_data_dict=None,csv_path=None,ring_length=300,num_lanes=2):
 	return None
+
+def make_ring_spacetime_fig_with_losses(losses_smoothed,
+	sim_data_dict=None,
+	csv_path=None,
+	ring_length=300):
+
+	if(sim_data_dict is None):
+		sim_data_dict = get_sim_data_dict_ring(csv_path)
+
+	veh_ids = list(sim_data_dict.keys())
+	ring_positions = get_ring_positions(sim_data_dict,ring_length)
+	
+	# Need to get losses:
+	times,positions,speeds,losses = stack_data_for_spacetime(sim_data_dict,ring_positions,want_losses=True,losses_dict=losses_smoothed)
+
+	positions_mod_ring_length = np.mod(positions,ring_length)
+
+	fontsize=15
+	pt.figure(figsize=[15,7])
+	pt.title('Space time plot, ring length: '+str(ring_length),fontsize=fontsize)
+	pt.scatter(times,positions_mod_ring_length,c=losses)
+	pt.ylabel('Position [m]',fontsize=fontsize)
+	pt.xlabel('Time [s]',fontsize=fontsize)
+	cbar = pt.colorbar(label='Anomaly loss score')
+	cbar.ax.tick_params(labelsize=10)
+	pt.show()
+

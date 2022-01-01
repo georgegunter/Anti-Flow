@@ -20,7 +20,7 @@ from flow.controllers.velocity_controllers import FollowerStopper, \
     PISaturation, NonLocalFollowerStopper
 
 # adversarial controllers
-from flow.controllers.car_following_adversarial import ACC_Switched_Controller_Attacked, \
+from Adversaries.controllers.car_following_adversarial import ACC_Switched_Controller_Attacked, \
     ACC_Switched_Controller_Attacked_Single, ACC_Benign, FollowerStopper_Overreact
 
 # lane change controllers

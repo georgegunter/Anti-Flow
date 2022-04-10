@@ -6,9 +6,6 @@ import math
 import os
 import datetime
 
-from Detectors.Deep_Learning.AutoEncoders.utils import train_epoch, eval_data
-from Detectors.Deep_Learning.AutoEncoders.utils import SeqDataset
-
 class Encoder(torch.nn.Module):
     def __init__(self, seq_len, n_features, embedding_dim, cnn_channels, kernel_size, stride):
         super(Encoder, self).__init__()

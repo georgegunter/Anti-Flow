@@ -450,6 +450,7 @@ class FollowerStopper_Overreact(BaseController):
         #If the vehicle gets too close it brakes for a long period of time:
         
         timegap = s/(v+.01)
+        
 
         if(timegap < 2.0 and not self.is_braking):
             print('Braking engaged, time '+str(env.sim_step*env.step_counter))

@@ -129,7 +129,6 @@ def run_ring_sim_with_attack_FSTP(ring_length=300,
 	
 	return sim_res_list
 
-
 def run_ring_sim_with_attack(ring_length=300,
 						   num_human_drivers=19,
 						   adversary=None):

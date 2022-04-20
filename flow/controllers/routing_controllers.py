@@ -125,6 +125,7 @@ class BayBridgeRouter(ContinuousRouter):
 
         return new_route
 
+
 class I210Router(ContinuousRouter):
     """Assists in choosing routes in select cases for the I-210 sub-network.
 
@@ -147,68 +148,5 @@ class I210Router(ContinuousRouter):
                 "119257908#1-AddedOffRampEdge"][0][0]
         else:
             new_route = super().choose_route(env)
-        return new_route
-
-class i24_adversarial_router(BaseRouter):
-    def choose_route(self, env):
-        """See parent class."""
-        edge = env.k.vehicle.get_edge(self.veh_id)
-
-        if edge == 'Eastbound_3':
-            new_route = env.available_routes['Eastbound_2'][0][0]
-        else:
-            new_route = super().choose_route(env)
-            # print(new_route)
 
         return new_route
-
-class I24Router(BaseRouter):
-    """Assists in choosing routes in select cases for the I-24 sub-network.
-
-    Extension to the Continuous Router.
-
-    Usage
-    -----
-    See base class for usage example.
-    """
-    def __init__(self,veh_id,router_params=None,position_to_switch_routes=50):
-        BaseRouter.__init__(self,veh_id,router_params)
-
-        self.veh_id = veh_id
-        self.position_to_switch_routes = position_to_switch_routes
-
-
-    def choose_route(self, env):
-        """
-        See parent class.
-        Supposed to change the routing for a vehicle that gets 'too' close
-        to the end of the exit-lane and tells that vehicle to instead just take that exit.
-        """
-
-        #TODO: add functionality for other lanes, s.t. they also don't sit still
-
-
-        edge = env.k.vehicle.get_edge(self.veh_id)
-        lane = env.k.vehicle.get_lane(self.veh_id)
-
-        position_on_edge = env.k.vehicle.get_position(self.veh_id)
-        edge_length = env.k.network.edge_length(edge) 
-
-        distance_to_edge_end = edge_length - position_on_edge
-
-        # position_to_switch_routes = 50.0
-
-        close_to_edge_end = distance_to_edge_end < self.position_to_switch_routes
-
-        if edge == 'Eastbound_7' and lane == 0 and close_to_edge_end:
-            new_route = env.available_routes['Eastbound_7'][0][0]
-            # Unclear whether this is working or not...
-            # Don't have this functionality here:
-            # env.k.vehicle.set_lane_changing_controller(self.veh_id,(StaticLaneChanger,{}))
-
-        else:
-            new_route = super().choose_route(env)
-
-        return new_route
-
-

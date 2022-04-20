@@ -51,7 +51,7 @@ additional_env_params = ADDITIONAL_ENV_PARAMS.copy()
 
 vehicles = VehicleParams()
 
-lc_controller = (RutgersLC, {'left_delta':0.5,'right_delta':0.5})
+lc_controller = (RutgersLC, {'left_delta':0.5,'right_delta':0.5,'want_print_LC_info':True})
 
 vehicles.add(
     "human",
@@ -92,7 +92,7 @@ inflows.add(
 inflows.add(
     veh_type="human",
     edge="highway_0",
-    vehs_per_hour=int(TRAFFIC_FLOW*.5),
+    vehs_per_hour=int(TRAFFIC_FLOW*.1),
     depart_lane=2,
     depart_speed=TRAFFIC_SPEED,
     name="idm")

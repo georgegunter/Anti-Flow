@@ -10,6 +10,9 @@ import warnings
 from flow.controllers.car_following_models import SimCarFollowingController
 from flow.controllers.rlcontroller import RLController
 from flow.controllers.lane_change_controllers import SimLaneChangeController
+from flow.networks import I210SubNetwork
+from flow.networks import HighwayNetwork
+from flow.controllers.lane_change_controllers import AILaneChangeController
 from bisect import bisect_left
 import itertools
 from copy import deepcopy
@@ -32,7 +35,9 @@ class TraCIVehicle(KernelVehicle):
     Extends flow.core.kernel.vehicle.base.KernelVehicle
     """
 
-    def __init__(self,master_kernel,sim_params):
+    def __init__(self,
+                 master_kernel,
+                 sim_params):
         """See parent class."""
         KernelVehicle.__init__(self, master_kernel, sim_params)
 
@@ -69,11 +74,11 @@ class TraCIVehicle(KernelVehicle):
 
         # number of vehicles that entered the network for every time-step
         self._num_departed = []
-        self._departed_ids = 0
+        self._departed_ids = []
 
         # number of vehicles to exit the network for every time-step
         self._num_arrived = []
-        self._arrived_ids = 0
+        self._arrived_ids = []
         self._arrived_rl_ids = []
 
         # whether or not to automatically color vehicles
@@ -85,6 +90,15 @@ class TraCIVehicle(KernelVehicle):
 
         # old speeds used to compute accelerations
         self.previous_speeds = {}
+        # The time that previous speed is recorded, used to calculate realized_accel
+        self.previous_time = 0
+
+        self._is_highway_i210 = \
+            isinstance(self.master_kernel.network.network, I210SubNetwork) or \
+            isinstance(self.master_kernel.network.network, HighwayNetwork)
+
+        # flag to collect lane leaders/followers/headways/tailways for all
+        self.collect_info_all = False
 
     def initialize(self, vehicles):
         """Initialize vehicle state information.
@@ -109,8 +123,6 @@ class TraCIVehicle(KernelVehicle):
             for i in range(typ['num_vehicles']):
                 veh_id = '{}_{}'.format(typ['veh_id'], i)
                 self.__vehicles[veh_id] = dict()
-                self.__vehicles[veh_id]['is_malicious'] = 0 #For specific case when we have adversaries
-                self.__vehicles[veh_id]['is_collision'] = 0
                 self.__vehicles[veh_id]['type'] = typ['veh_id']
                 self.__vehicles[veh_id]['initial_speed'] = typ['initial_speed']
                 self.num_vehicles += 1
@@ -135,7 +147,6 @@ class TraCIVehicle(KernelVehicle):
             step
         """
         # copy over the previous speeds
-
         vehicle_obs = {}
         for veh_id in self.__ids:
             self.previous_speeds[veh_id] = self.get_speed(veh_id)
@@ -184,8 +195,8 @@ class TraCIVehicle(KernelVehicle):
                 self.prev_last_lc[veh_id] = -float("inf")
             self._num_departed.clear()
             self._num_arrived.clear()
-            self._departed_ids = 0
-            self._arrived_ids = 0
+            self._departed_ids = []
+            self._arrived_ids = []
             self._arrived_rl_ids.clear()
             self.num_not_departed = 0
 
@@ -220,39 +231,45 @@ class TraCIVehicle(KernelVehicle):
             self.num_not_departed += sim_obs[tc.VAR_LOADED_VEHICLES_NUMBER] - \
                 sim_obs[tc.VAR_DEPARTED_VEHICLES_NUMBER]
 
-        # update the "headway", "leader", and "follower" variables
-        for veh_id in self.__ids:
-            try:
-                _position = vehicle_obs.get(veh_id, {}).get(
-                    tc.VAR_POSITION, -1001)
-                _angle = vehicle_obs.get(veh_id, {}).get(tc.VAR_ANGLE, -1001)
-                _time_step = sim_obs[tc.VAR_TIME_STEP]
-                _time_delta = sim_obs[tc.VAR_DELTA_T]
-                self.__vehicles[veh_id]["orientation"] = \
-                    list(_position) + [_angle]
-                self.__vehicles[veh_id]["timestep"] = _time_step
-                self.__vehicles[veh_id]["timedelta"] = _time_delta
-            except TypeError:
-                print(traceback.format_exc())
-            headway = vehicle_obs.get(veh_id, {}).get(tc.VAR_LEADER, None)
-            # check for a collided vehicle or a vehicle with no leader
-            if headway is None:
-                self.__vehicles[veh_id]["leader"] = None
-                self.__vehicles[veh_id]["follower"] = None
-                self.__vehicles[veh_id]["headway"] = 1e+3
-                self.__vehicles[veh_id]["follower_headway"] = 1e+3
-            else:
-                min_gap = self.minGap[self.get_type(veh_id)]
-                self.__vehicles[veh_id]["headway"] = headway[1] + min_gap
-                self.__vehicles[veh_id]["leader"] = headway[0]
-                if headway[0] in self.__vehicles:
-                    leader = self.__vehicles[headway[0]]
-                    # if veh_id is closer from leader than another follower
-                    # (in case followers are in different converging edges)
-                    if ("follower_headway" not in leader or
-                            headway[1] + min_gap < leader["follower_headway"]):
-                        leader["follower"] = veh_id
-                        leader["follower_headway"] = headway[1] + min_gap
+        # Update features specific for the pyglet renderer.
+        pyglet_renderer = self.master_kernel.network.sim_params.render \
+            in ['gray', 'dgray', 'rgb', 'drgb']
+        if pyglet_renderer:
+            for veh_id in self.__ids:
+                try:
+                    _position = vehicle_obs.get(veh_id, {}).get(
+                        tc.VAR_POSITION, -1001)
+                    _angle = vehicle_obs.get(veh_id, {}).get(
+                        tc.VAR_ANGLE, -1001)
+                    _time_step = sim_obs[tc.VAR_TIME_STEP]
+                    _time_delta = sim_obs[tc.VAR_DELTA_T]
+                    self.__vehicles[veh_id]["orientation"] = \
+                        list(_position) + [_angle]
+                    self.__vehicles[veh_id]["timestep"] = _time_step
+                    self.__vehicles[veh_id]["timedelta"] = _time_delta
+                except TypeError:
+                    print(traceback.format_exc())
+
+        # Update the "headway", "leader", and "follower" variables.
+        if not self._is_highway_i210:
+            for veh_id in self.__ids:
+                headway = vehicle_obs.get(veh_id, {}).get(tc.VAR_LEADER, None)
+                # check for a collided vehicle or a vehicle with no leader
+                if headway is None:
+                    self.__vehicles[veh_id]["leader"] = None
+                    self.__vehicles[veh_id]["follower"] = None
+                    self.__vehicles[veh_id]["headway"] = 1e+3
+                else:
+                    min_gap = self.minGap[self.get_type(veh_id)]
+                    self.__vehicles[veh_id]["headway"] = headway[1] + min_gap
+                    self.__vehicles[veh_id]["leader"] = headway[0]
+                    if headway[0] in self.__vehicles:
+                        leader = self.__vehicles[headway[0]]
+                        # if veh_id is closer from leader than another follower
+                        # (in case followers are in different converging edges)
+                        if ("follower_headway" not in leader or
+                                headway[1] + min_gap < leader["follower_headway"]):
+                            leader["follower"] = veh_id
 
         # update the sumo observations variable
         self.__sumo_obs = vehicle_obs.copy()
@@ -262,6 +279,9 @@ class TraCIVehicle(KernelVehicle):
 
         # make sure the rl vehicle list is still sorted
         self.__rl_ids.sort()
+
+        if self._is_highway_i210:
+            self._update_headways()
 
     def _add_departed(self, veh_id, veh_type):
         """Add a vehicle that entered the network from an inflow or reset.
@@ -287,8 +307,64 @@ class TraCIVehicle(KernelVehicle):
             self.num_vehicles += 1
             self.__vehicles[veh_id] = dict()
 
+        self.set_vehicle_type(veh_id, veh_type)
+
+        # subscribe the new vehicle
+        self.kernel_api.vehicle.subscribe(veh_id, [
+            tc.VAR_LANE_INDEX, tc.VAR_LANEPOSITION,
+            tc.VAR_ROAD_ID,
+            tc.VAR_SPEED,
+            tc.VAR_EDGES,
+            tc.VAR_POSITION,
+            tc.VAR_ANGLE,
+            tc.VAR_SPEED_WITHOUT_TRACI,
+            tc.VAR_FUELCONSUMPTION,
+            tc.VAR_DISTANCE
+        ])
+        self.kernel_api.vehicle.subscribeLeader(veh_id, 2000)
+
+        # some constant vehicle parameters to the vehicles class
+        self.__vehicles[veh_id][
+            "length"] = self.kernel_api.vehicle.getLength(
+            veh_id)
+
+        # set the "last_lc" parameter of the vehicle
+        self.__vehicles[veh_id]["last_lc"] = -float("inf")
+
+        # get initial state info
+        self.__sumo_obs[veh_id] = dict()
+        self.__sumo_obs[veh_id][tc.VAR_ROAD_ID] = \
+            self.kernel_api.vehicle.getRoadID(veh_id)
+        self.__sumo_obs[veh_id][tc.VAR_LANEPOSITION] = \
+            self.kernel_api.vehicle.getLanePosition(veh_id)
+        self.__sumo_obs[veh_id][tc.VAR_LANE_INDEX] = \
+            self.kernel_api.vehicle.getLaneIndex(veh_id)
+        self.__sumo_obs[veh_id][tc.VAR_SPEED] = \
+            self.kernel_api.vehicle.getSpeed(veh_id)
+        self.__sumo_obs[veh_id][tc.VAR_FUELCONSUMPTION] = \
+            self.kernel_api.vehicle.getFuelConsumption(veh_id)
+
+        # get the subscription results from the new vehicle
+        new_obs = self.kernel_api.vehicle.getSubscriptionResults(veh_id)
+
+        return new_obs
+
+    def set_vehicle_type(self, veh_id, veh_type):
+        """Update/initialize the type of a specific vehicle internally.
+
+        Parameters
+        ----------
+        veh_id : str
+            the name of the vehicle
+        veh_type : str
+            the vehicle type to use
+        """
         # specify the type
         self.__vehicles[veh_id]["type"] = veh_type
+
+        # specify energy model
+        self.__vehicles[veh_id]["energy_model"] = self.type_parameters[
+            veh_type]["energy_model"]()
 
         car_following_params = \
             self.type_parameters[veh_type]["car_following_params"]
@@ -307,6 +383,11 @@ class TraCIVehicle(KernelVehicle):
         self.__vehicles[veh_id]["lane_changer"] = \
             lc_controller[0](veh_id=veh_id, **lc_controller[1])
 
+        # if lane changer is AILaneChangeController, set collect info flag True
+        if lc_controller[0] == AILaneChangeController and \
+                not self.collect_info_all:
+            self.collect_info_all = True
+
         # specify the routing controller class
         rt_controller = self.type_parameters[veh_type]["routing_controller"]
         if rt_controller is not None:
@@ -315,46 +396,31 @@ class TraCIVehicle(KernelVehicle):
         else:
             self.__vehicles[veh_id]["router"] = None
 
-        # Handles case when adversaries:
-        self.__vehicles[veh_id]["is_malicious"] = 0
-
-        # Tracks when a collision can occur:
-
-        self.__vehicles[veh_id]['is_collision'] = 0
-
-
         # add the vehicle's id to the list of vehicle ids
         if accel_controller[0] == RLController:
+            # Remove from the human-driven lists if it was ever there. Needed
+            # when updating the vehicle type dynamically.
+            if veh_id in self.__human_ids:
+                self.__human_ids.remove(veh_id)
+            if veh_id in self.__controlled_ids:
+                self.__controlled_ids.remove(veh_id)
+            if veh_id in self.__controlled_lc_ids:
+                self.__controlled_lc_ids.remove(veh_id)
+
             if veh_id not in self.__rl_ids:
                 self.__rl_ids.append(veh_id)
         else:
+            # Remove from the RL lists if it was ever there. Needed when
+            # updating the vehicle type dynamically.
+            if veh_id in self.__rl_ids:
+                self.__rl_ids.remove(veh_id)
+
             if veh_id not in self.__human_ids:
                 self.__human_ids.append(veh_id)
                 if accel_controller[0] != SimCarFollowingController:
                     self.__controlled_ids.append(veh_id)
                 if lc_controller[0] != SimLaneChangeController:
                     self.__controlled_lc_ids.append(veh_id)
-
-        # subscribe the new vehicle
-        self.kernel_api.vehicle.subscribe(veh_id, [
-            tc.VAR_LANE_INDEX, tc.VAR_LANEPOSITION,
-            tc.VAR_ROAD_ID,
-            tc.VAR_SPEED,
-            tc.VAR_EDGES,
-            tc.VAR_POSITION,
-            tc.VAR_ANGLE,
-            tc.VAR_SPEED_WITHOUT_TRACI,
-            tc.VAR_FUELCONSUMPTION,
-            tc.VAR_DISTANCE
-        ])
-        self.kernel_api.vehicle.subscribeLeader(veh_id, 2000)
-
-        # some constant vehicle parameters to the vehicles class
-        self.__vehicles[veh_id]["length"] = self.kernel_api.vehicle.getLength(
-            veh_id)
-
-        # set the "last_lc" parameter of the vehicle
-        self.__vehicles[veh_id]["last_lc"] = -float("inf")
 
         # specify the initial speed
         self.__vehicles[veh_id]["initial_speed"] = \
@@ -370,38 +436,21 @@ class TraCIVehicle(KernelVehicle):
             "lane_change_params"].lane_change_mode
         self.kernel_api.vehicle.setLaneChangeMode(veh_id, lc_mode)
 
-        # get initial state info
-        self.__sumo_obs[veh_id] = dict()
-        self.__sumo_obs[veh_id][tc.VAR_ROAD_ID] = \
-            self.kernel_api.vehicle.getRoadID(veh_id)
-        self.__sumo_obs[veh_id][tc.VAR_LANEPOSITION] = \
-            self.kernel_api.vehicle.getLanePosition(veh_id)
-        self.__sumo_obs[veh_id][tc.VAR_LANE_INDEX] = \
-            self.kernel_api.vehicle.getLaneIndex(veh_id)
-        self.__sumo_obs[veh_id][tc.VAR_SPEED] = \
-            self.kernel_api.vehicle.getSpeed(veh_id)
-        self.__sumo_obs[veh_id][tc.VAR_FUELCONSUMPTION] = \
-            self.kernel_api.vehicle.getFuelConsumption(veh_id)
-
         # make sure that the order of rl_ids is kept sorted
         self.__rl_ids.sort()
         self.num_rl_vehicles = len(self.__rl_ids)
-
-        # get the subscription results from the new vehicle
-        new_obs = self.kernel_api.vehicle.getSubscriptionResults(veh_id)
-
-        return new_obs
 
     def reset(self):
         """See parent class."""
         self.previous_speeds = {}
 
-    def remove(self, veh_id):
+    def remove(self, veh_id, from_sumo=True):
         """See parent class."""
         # remove from sumo
-        if veh_id in self.kernel_api.vehicle.getIDList():
-            self.kernel_api.vehicle.unsubscribe(veh_id)
-            self.kernel_api.vehicle.remove(veh_id)
+        if from_sumo:
+            if veh_id in self.kernel_api.vehicle.getIDList():
+                self.kernel_api.vehicle.unsubscribe(veh_id)
+                self.kernel_api.vehicle.remove(veh_id)
 
         if veh_id in self.__ids:
             self.__ids.remove(veh_id)
@@ -548,12 +597,15 @@ class TraCIVehicle(KernelVehicle):
         """See parent class."""
         return self.num_not_departed
 
-    def get_fuel_consumption(self, veh_id, error=-1001):
-        """Return fuel consumption in gallons/s."""
-        ml_to_gallons = 0.000264172
+    def get_energy_model(self, veh_id, error=""):
+        """See parent class."""
         if isinstance(veh_id, (list, np.ndarray)):
-            return [self.get_fuel_consumption(vehID, error) for vehID in veh_id]
-        return self.__sumo_obs.get(veh_id, {}).get(tc.VAR_FUELCONSUMPTION, error) * ml_to_gallons
+            return [self.get_energy_model(vehID) for vehID in veh_id]
+        try:
+            return self.__vehicles.get(veh_id, {'energy_model': error})['energy_model']
+        except KeyError:
+            print("Energy model not specified for vehicle {}".format(veh_id))
+            raise
 
     def get_previous_speed(self, veh_id, error=-1001):
         """See parent class."""
@@ -606,35 +658,6 @@ class TraCIVehicle(KernelVehicle):
             return [self.get_length(vehID, error) for vehID in veh_id]
         return self.__vehicles.get(veh_id, {}).get("length", error)
 
-    #Added specifically to deal with case where some vehicles act malicious:
-
-    def get_malicious(self, veh_id, error=-1001):
-        """
-        Returns 1 if the vehicle is engaged in malicious behavior and 0 if not. By default
-        this will be 0. The set_malicious method can be used to set that value.
-        """
-        if isinstance(veh_id, (list, np.ndarray)):
-            return [self.get_malicious(vehID, error) for vehID in veh_id]
-        return self.__vehicles.get(veh_id, {}).get("is_malicious", error)
-
-    def set_malicious(self, veh_id, is_malicious=0):
-        '''Set the 'is_malicious' value for this vehicle at the given time-step '''
-        self.__vehicles[veh_id]["is_malicious"] = is_malicious
-
-    
-    def get_collision(self, veh_id, error=-1001):
-        """
-        Returns 1 if the vehicle just had a collision, otherwise 0.
-        """
-        if isinstance(veh_id, (list, np.ndarray)):
-            return [self.get_malicious(vehID, error) for vehID in veh_id]
-        return self.__vehicles.get(veh_id, {}).get("is_collision", error)
-
-    def set_collision(self,veh_id,is_collision=1):
-
-        self.__vehicles[veh_id]["is_collision"] = is_collision
-
-
     def get_leader(self, veh_id, error=""):
         """See parent class."""
         if isinstance(veh_id, (list, np.ndarray)):
@@ -653,6 +676,52 @@ class TraCIVehicle(KernelVehicle):
             return [self.get_headway(vehID, error) for vehID in veh_id]
         return self.__vehicles.get(veh_id, {}).get("headway", error)
 
+    def _update_headways(self):
+        """Update the adjacent vehicle data (for the I210 and highway)."""
+        # Separate the vehicles by lane.
+        veh_ids = [[] for _ in range(6)]
+        for veh_id in self.get_ids():
+            veh_ids[self._get_lane(veh_id)].append(veh_id)
+
+        for lane in range(6):
+            # Sort each vehicle based on the position it is on it's given lane.
+            sorted_ids = sorted(veh_ids[lane], key=self.get_x_by_id)
+
+            # Update the headways, tailways, leaders, and followers for each
+            # vehicle.
+            for i, veh_id in enumerate(sorted_ids):
+                pos = self.get_x_by_id(veh_id)
+
+                # The front vehicle has no leaders.
+                if i == len(sorted_ids) - 1:
+                    leader = None
+                    headway = 1000
+                else:
+                    leader = sorted_ids[i + 1]
+                    headway = self.get_x_by_id(leader) - pos - 5
+
+                # The back vehicle have no followers.
+                if i == 0:
+                    follower = None
+                else:
+                    follower = sorted_ids[i - 1]
+
+                self.__vehicles[veh_id]["leader"] = leader
+                self.__vehicles[veh_id]["headway"] = headway
+                self.__vehicles[veh_id]["follower"] = follower
+
+    def _get_lane(self, veh_id):
+        """Return a processed lane number."""
+        lane = self.get_lane(veh_id)
+        edge = self.get_edge(veh_id)
+        return lane + 1 if edge not in [
+            "119257908#1-AddedOnRampEdge",
+            "119257908#1-AddedOffRampEdge",
+            ":119257908#1-AddedOnRampNode_0",
+            ":119257908#1-AddedOffRampNode_0",
+            "119257908#3",
+        ] else lane
+
     def get_last_lc(self, veh_id, error=-1001):
         """See parent class."""
         if isinstance(veh_id, (list, np.ndarray)):
@@ -663,7 +732,7 @@ class TraCIVehicle(KernelVehicle):
                           ' {}.'.format(veh_id, error))
             return error
         else:
-            return self.__vehicles.get(veh_id, {}).get("headway", error)
+            return self.__vehicles.get(veh_id, {}).get("last_lc", error)
 
     def get_acc_controller(self, veh_id, error=None):
         """See parent class."""
@@ -788,7 +857,11 @@ class TraCIVehicle(KernelVehicle):
                 for lane in range(max_lanes):
                     edge_dict[edge][lane].sort(key=lambda x: x[1])
 
-        for veh_id in self.get_rl_ids():
+        # get tracked vehicles IDs, for these vehicles info will be collected
+        tracked_vehs = self.get_ids() if self.collect_info_all \
+            else self.get_rl_ids()  # FIXME (yf) better collect tracked vehicles
+
+        for veh_id in tracked_vehs:
             # collect the lane leaders, followers, headways, and tailways for
             # each vehicle
             edge = self.get_edge(veh_id)
@@ -990,7 +1063,7 @@ class TraCIVehicle(KernelVehicle):
 
         return tailway, follower
 
-    def apply_acceleration(self, veh_ids, acc, smooth=True):
+    def apply_acceleration(self, veh_ids, acc, smooth_duration=0):
         """See parent class."""
         # to handle the case of a single vehicle
         if type(veh_ids) == str:
@@ -1002,8 +1075,8 @@ class TraCIVehicle(KernelVehicle):
                 self.__vehicles[vid]["accel"] = acc[i]
                 this_vel = self.get_speed(vid)
                 next_vel = max([this_vel + acc[i] * self.sim_step, 0])
-                if smooth:
-                    self.kernel_api.vehicle.slowDown(vid, next_vel, 1e-3)
+                if smooth_duration:
+                    self.kernel_api.vehicle.slowDown(vid, next_vel, smooth_duration)
                 else:
                     self.kernel_api.vehicle.setSpeed(vid, next_vel)
 
@@ -1060,8 +1133,12 @@ class TraCIVehicle(KernelVehicle):
         if self.get_edge(veh_id) == '':
             # occurs when a vehicle crashes is teleported for some other reason
             return 0.
-        return self.master_kernel.network.get_x(
-            self.get_edge(veh_id), self.get_position(veh_id))
+
+        if self._is_highway_i210:
+            return self.get_distance(veh_id)
+        else:
+            return self.master_kernel.network.get_x(
+                self.get_edge(veh_id), self.get_position(veh_id))
 
     def update_vehicle_colors(self):
         """See parent class.
@@ -1174,13 +1251,12 @@ class TraCIVehicle(KernelVehicle):
         else:
             metric_name += '_no_noise'
         if failsafe:
-            metric_name += '_with_falsafe'
+            metric_name += '_with_failsafe'
         else:
             metric_name += '_no_failsafe'
 
-        if metric_name not in self.__vehicles[veh_id]:
-            self.__vehicles[veh_id][metric_name] = None
-        return self.__vehicles[veh_id][metric_name]
+        return self.__vehicles[veh_id].get(metric_name, None) \
+            or self.get_realized_accel(veh_id)
 
     def update_accel(self, veh_id, accel, noise=True, failsafe=True):
         """See parent class."""
@@ -1190,7 +1266,7 @@ class TraCIVehicle(KernelVehicle):
         else:
             metric_name += '_no_noise'
         if failsafe:
-            metric_name += '_with_falsafe'
+            metric_name += '_with_failsafe'
         else:
             metric_name += '_no_failsafe'
 

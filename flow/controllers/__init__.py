@@ -19,10 +19,6 @@ from flow.controllers.car_following_models import CFMController, \
 from flow.controllers.velocity_controllers import FollowerStopper, \
     PISaturation, NonLocalFollowerStopper
 
-# adversarial controllers
-from flow.controllers.car_following_adversarial import ACC_Switched_Controller_Attacked, \
-    ACC_Switched_Controller_Attacked_Single, ACC_Benign
-
 # lane change controllers
 from flow.controllers.base_lane_changing_controller import \
     BaseLaneChangeController
@@ -32,7 +28,7 @@ from flow.controllers.lane_change_controllers import StaticLaneChanger, \
 # routing controllers
 from flow.controllers.base_routing_controller import BaseRouter
 from flow.controllers.routing_controllers import ContinuousRouter, \
-    GridRouter, BayBridgeRouter, I210Router, i24_adversarial_router, I24Router
+    GridRouter, BayBridgeRouter, I210Router
 
 __all__ = [
     "RLController", "BaseController", "BaseLaneChangeController", "BaseRouter",
@@ -41,5 +37,5 @@ __all__ = [
     "PISaturation", "StaticLaneChanger", "SimLaneChangeController",
     "ContinuousRouter", "GridRouter", "BayBridgeRouter", "LACController",
     "GippsController", "NonLocalFollowerStopper", "BandoFTLController",
-    "I210Router"
+    "AILaneChangeController", "I210Router"
 ]

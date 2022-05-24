@@ -91,7 +91,7 @@ class Bando_OVM_FTL(BaseController):
 
 
 
-sim_time = 1000
+sim_time = 500
 ring_length = 300
 num_lanes = 2
 
@@ -113,7 +113,7 @@ left_delta_mean = 0.5
 right_delta_mean = 0.3
 left_beta_mean=1.5
 right_beta_mean=1.5
-switching_threshold_mean = 5.0
+switching_threshold_mean = 15.0
 
 num_human_drivers = 35
 
@@ -122,7 +122,7 @@ for i in range(num_human_drivers):
     b = b_mean + np.random.normal(0,0.5)
     s0 = s0_mean + np.random.normal(0,0.2)
     s1 = s1_mean + np.random.normal(0,0.2)
-    Vm = Vm_mean + np.random.normal(0,0.5)
+    Vm = Vm_mean + np.random.normal(0,1.5)
     
     left_delta = left_delta_mean + np.random.normal(0,0.1)
     right_delta = right_delta_mean + np.random.normal(0,0.1)
@@ -144,6 +144,62 @@ for i in range(num_human_drivers):
 
 
 
+## Add in robot drivers:
+
+import Adversaries.controllers.car_following_adversarial
+from Adversaries.controllers.car_following_adversarial import FollowerStopper_Overreact
+from Adversaries.controllers.car_following_adversarial import ACC_Benign
+
+
+k_1_mean = 1.5
+k_2_mean = 0.2
+h_mean = 1.8
+V_m_mean = 15.0
+d_min_mean = 10.0
+
+for i in range(3):
+    k_1 = k_1_mean + np.random.normal(0,0.2)
+    k_2 = k_2_mean + np.random.normal(0,0.2)
+    h = h_mean + np.random.normal(0,0.2)
+    V_m = V_m_mean + np.random.normal(0,1.0)
+    d_min = d_min_mean
+    
+    label = 'ACC_k_1'+str(np.round(k_1,2))+'_k_2'+str(np.round(k_2,2))+'_h'+str(np.round(h,2))+'_V_m'+str(np.round(V_m,2))+'d_m'+str(np.round(d_min,2))
+    cfm_controller = (ACC_Benign,{'k_1':k_1,'k_2':k_2,'h':h,'V_m':V_m,'d_min':d_min})
+    driver_controller_list.append([label,cfm_controller,1])
+
+
+## Attacker specification:
+
+
+v_des = 10.0
+braking_period = 5.0
+braking_rate = -3.0
+
+adversary = (FollowerStopper_Overreact, {'v_des':v_des,
+                                        'braking_rate':braking_rate,
+                                        'braking_period':braking_period})
+
+label_adv = 'FStop_vd'+str(v_des)+'_bperiod'+str(braking_period)+'_brate'+str(braking_rate)
+driver_controller_list.append([label_adv,adversary,1])
+
+
+
+v_des = 15.0
+braking_period = 3.0
+braking_rate = -3.0
+
+adversary = (FollowerStopper_Overreact, {'v_des':v_des,
+                                        'braking_rate':braking_rate,
+                                        'braking_period':braking_period})
+
+label_adv = 'FStop_vd'+str(v_des)+'_bperiod'+str(braking_period)+'_brate'+str(braking_rate)
+driver_controller_list.append([label_adv,adversary,1])
+
+
+
+
+##
 
 #Simulation parameters:
 time_step = 0.1 #In seconds, how far each step of the simulation goes.
@@ -201,8 +257,15 @@ else:
                 num_vehicles=num_vehicles)
 
 
+
+
+
+
+
+
+
 flow_params = dict(
-    exp_tag='ring_variable_cfm',
+    exp_tag='ring_variable_cfm_with_attacl',
     env_name=AccelEnv,
     network=RingNetwork,
     simulator='traci',

@@ -119,32 +119,41 @@ class ACC_Switched_Controller_Attacked(BaseController):
         self.initial_attack_occurred = False
         self.is_malicious = True
 
+
+        #Timing related things:
         self.SS_Threshold = SS_Threshold_min + np.random.rand()*SS_Threshold_range #number seconds at SS to initiate attack
+        self.warmup_steps = warmup_steps
 
         self.Total_Attack_Duration = Total_Attack_Duration #How long attack lasts for
         self.Curr_Attack_Duration = 0.0 
         self.attack_decel_rate = attack_decel_rate #Rate at which ACC decelerates
         self.a = 0.0
         self.display_attack_info = display_attack_info
-        self.warmup_steps = warmup_steps
 
+
+        if(self.display_attack_info):
+            print('Spawning compromised ACC, attack frequency: '+str(self.SS_Threshold))
+        if(self.want_multiple_attacks):
+            print('Will engage in multiple attacks.')
+        else:
+            print('Will engage in a single attack.')
 
 
     def Attack_accel(self,env):
         #Declerates the car for a set period at a set rate:
-
-        self.a = self.attack_decel_rate
-
         self.Curr_Attack_Duration += env.sim_step
 
         s = env.k.vehicle.get_headway(self.veh_id)
         L = env.k.vehicle.get_length(self.veh_id)
         s = s - L
-        v = env.k.vehicle.get_speed(self.veh_id) 
+        v = env.k.vehicle.get_speed(self.veh_id)
+        lead_id = env.k.vehicle.get_leader(self.veh_id)
+        v_l = env.k.vehicle.get_speed(lead_id)
 
-        if(s < (v*(self.h-.2))):
-            #If vehicle in front is getting too close, break from disturbance
-            self.Reset_After_Attack(env)
+        a_nom = self.accel_func(v,v_l,s)
+
+        # If need to brake harder to avoid a collision:
+        self.a = np.min([self.attack_decel_rate,a_nom])
 
         if(self.Curr_Attack_Duration >= self.Total_Attack_Duration):
             self.Reset_After_Attack(env)
@@ -152,12 +161,12 @@ class ACC_Switched_Controller_Attacked(BaseController):
     def Reset_After_Attack(self,env):
         self.initial_attack_occurred = True
         self.isUnderAttack = False
-        self.numSteps_Steady_State = 0
         self.Curr_Attack_Duration = 0.0
+        self.numSteps_Steady_State = 0
         pos  = env.k.vehicle.get_position(self.veh_id)
         lane = env.k.vehicle.get_lane(self.veh_id)
         if(self.display_attack_info):
-            print('Attack info:'+str(self.veh_id)+', '+str(self.attack_decel_rate)+', '+str(self.Total_Attack_Duration)+', '+str(env.step_counter*env.sim_step))
+            print('Attack finished:'+str(self.veh_id)+', '+str(self.attack_decel_rate)+', '+str(self.Total_Attack_Duration)+', '+str(env.step_counter*env.sim_step))
 
     def Check_For_Steady_State(self):
         self.numSteps_Steady_State += 1
@@ -238,14 +247,18 @@ class ACC_Switched_Controller_Attacked(BaseController):
         if(perform_attack):
             #Attack under way:
             self.Attack_accel(env) #Sets the vehicles acceleration, which is self.a
-            env.k.vehicle.set_malicious(veh_id=self.veh_id,is_malicious=1)
+            
+            #Commenting out temporarily, since needs to be re-implemented:
+            # env.k.vehicle.set_malicious(veh_id=self.veh_id,is_malicious=1)
         else:   
             # No attack currently happening:
             self.normal_ACC_accel(env) #Sets vehicles acceleration in self.a
             # Check to see if need to initiate attack:
+            self.numSteps_Steady_State += 1
             self.Check_Start_Attack(env)
             # Specificy that no attack is being executed:
-            env.k.vehicle.set_malicious(veh_id=self.veh_id,is_malicious=0)
+            #Commenting out temporarily, since needs to be re-implemented:
+            # env.k.vehicle.set_malicious(veh_id=self.veh_id,is_malicious=0)
 
 
         return self.a #return the acceleration that is set above.
@@ -471,7 +484,7 @@ class FollowerStopper_Overreact(BaseController):
             
         return u #return the acceleration that is set above.
         
-    def get_custom_accel(self, v, v_l, s):
+    def get_custom_accel(self, this_vel, lead_vel, h):
         """Leave as 0.0 since behavior has memory"""
         return 0.0
 

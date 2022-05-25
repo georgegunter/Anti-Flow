@@ -15,12 +15,7 @@ class PowerDemandModel(BaseEnergyModel, metaclass=ABCMeta):
     function used as a correction factor.
     """
 
-    def __init__(self,
-                 mass=2041,
-                 idle_coeff=3405.5481762,
-                 linear_friction_coeff=83.123929917,
-                 quadratic_friction_coeff=6.7650718327,
-                 drag_coeff=0.7041355229,
+    def __init__(self, mass, idle_coeff, linear_friction_coeff, quadratic_friction_coeff, drag_coeff,
                  p0_correction=0,
                  p1_correction=0,
                  p2_correction=0,
@@ -48,6 +43,7 @@ class PowerDemandModel(BaseEnergyModel, metaclass=ABCMeta):
             Instantaneous speed of the vehicle
         grade : float
             Instantaneous road grade of the vehicle
+
         Returns
         -------
         float

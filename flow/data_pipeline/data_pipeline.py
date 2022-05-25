@@ -2,7 +2,7 @@
 import pandas as pd
 import boto3
 from botocore.exceptions import ClientError
-from flow.data_pipeline.query import QueryStrings, prerequisites, tables
+from flow.data_pipeline.query import QueryStrings, prerequisites, tables, network_filters, max_decel, leader_max_decel
 from time import time
 from datetime import date
 import csv
@@ -141,17 +141,22 @@ def delete_obsolete_data(s3, latest_key, table, bucket="circles.data.pipeline"):
         s3.delete_object(Bucket=bucket, Key=key)
 
 
-def update_baseline(s3, baseline_network, baseline_source_id):
+def update_baseline(s3, baseline_network, baseline_source_id,
+                    baseline_version, baseline_on_ramp, baseline_road_grade):
     """Update the baseline table on S3 if new baseline run is added."""
     obj = s3.get_object(Bucket='circles.data.pipeline', Key='baseline_table/baselines.csv')['Body']
     original_str = obj.read().decode()
     reader = csv.DictReader(StringIO(original_str))
     new_str = StringIO()
-    writer = csv.DictWriter(new_str, fieldnames=['network', 'source_id'])
+    writer = csv.DictWriter(new_str, fieldnames=['network', 'version',
+                                                 'on_ramp', 'road_grade', 'source_id'])
     writer.writeheader()
-    writer.writerow({'network': baseline_network, 'source_id': baseline_source_id})
+    writer.writerow({'network': baseline_network, 'version': baseline_version,
+                     'on_ramp': baseline_on_ramp, 'road_grade': baseline_road_grade,
+                     'source_id': baseline_source_id})
     for row in reader:
-        if row['network'] != baseline_network:
+        if row['network'] != baseline_network or row['version'] != baseline_version \
+           or row['on_ramp'] != baseline_on_ramp or row['road_grade'] != baseline_road_grade:
             writer.writerow(row)
     s3.put_object(Bucket='circles.data.pipeline', Key='baseline_table/baselines.csv',
                   Body=new_str.getvalue().replace('\r', '').encode())
@@ -211,7 +216,7 @@ def list_object_keys(s3, bucket='circles.data.pipeline', prefixes='', suffix='')
 
 def delete_table(s3, bucket='circles.data.pipeline', only_query_result=True, table='', source_id=''):
     """Delete the specified data files in S3."""
-    queries = ["lambda_temp"]
+    queries = []
     if table:
         queries.append(table)
     else:
@@ -228,62 +233,56 @@ def delete_table(s3, bucket='circles.data.pipeline', only_query_result=True, tab
             queries.remove('leaderboard_chart_agg')
             queries.remove('fact_top_scores')
     keys = list_object_keys(s3, bucket=bucket, prefixes=queries)
+    source_ids = []
     if source_id:
         keys = [key for key in keys if source_id in key]
+        source_ids.append(source_id)
+    else:
+        source_ids = list_source_ids(s3, bucket=bucket)
+    for sid in source_ids:
+        if table:
+            lambda_temp = get_completed_queries(s3, sid)
+            lambda_temp.remove(table.upper())
+            put_completed_queries(s3, sid, lambda_temp)
+        else:
+            s3.delete_object(Bucket=bucket, Key='lambda_temp/{}'.format(sid))
+
     for key in keys:
         s3.delete_object(Bucket=bucket, Key=key)
 
 
-def rerun_query(s3, queue_url, bucket='circles.data.pipeline', source_id=''):
-    """Re-run queries for simulation datas that has been uploaded to s3, will delete old data before re-run."""
-    vehicle_trace_keys = list_object_keys(s3, bucket=bucket, prefixes="fact_vehicle_trace", suffix='.csv')
-    delete_table(s3, bucket=bucket, source_id=source_id)
+def rerun_query(s3, sqs, queue_url, table, bucket='circles.data.pipeline', source_id=''):
+    """Re-run specfied queries, will not delete any old results automatically."""
+    vehicle_trace_keys = list_object_keys(s3, bucket=bucket, prefixes="fact_vehicle_trace", suffix='csv')
     if source_id:
-        vehicle_trace_keys = [key for key in vehicle_trace_keys if source_id in key]
-    sqs_client = boto3.client('sqs')
-    # A s3 put event message template, used to trigger lambda for an existing submission without uploading it again
-    event_template = """
-        {{
-          "Records": [
-            {{
-              "eventVersion": "2.0",
-              "eventSource": "aws:s3",
-              "awsRegion": "us-west-2",
-              "eventTime": "1970-01-01T00:00:00.000Z",
-              "eventName": "ObjectCreated:Put",
-              "userIdentity": {{
-                "principalId": "EXAMPLE"
-              }},
-              "requestParameters": {{
-                "sourceIPAddress": "127.0.0.1"
-              }},
-              "responseElements": {{
-                "x-amz-request-id": "EXAMPLE123456789",
-                "x-amz-id-2": "EXAMPLE123/5678abcdefghijklambdaisawesome/mnopqrstuvwxyzABCDEFGH"
-              }},
-              "s3": {{
-                "s3SchemaVersion": "1.0",
-                "configurationId": "testConfigRule",
-                "bucket": {{
-                  "name": "{bucket}",
-                  "ownerIdentity": {{
-                    "principalId": "EXAMPLE"
-                  }},
-                  "arn": "arn:aws:s3:::{bucket}"
-                }},
-                "object": {{
-                  "key": "{key}",
-                  "size": 1024,
-                  "eTag": "0123456789abcdef0123456789abcdef",
-                  "sequencer": "0A1B2C3D4E5F678901"
-                }}
-              }}
-            }}
-          ]
-        }}"""
-    for key in vehicle_trace_keys:
-        sqs_client.send_message(QueueUrl=queue_url,
-                                MessageBody=event_template.format(bucket=bucket, key=key))
+        for key in vehicle_trace_keys:
+            if source_id in key:
+                keys = [key]
+                break
+    else:
+        keys = vehicle_trace_keys
+    for key in keys:
+        query_date = key.split('/')[-3].split('=')[-1]
+        partition = key.split('/')[-2].split('=')[-1]
+        source_id = "flow_{}".format(partition.split('_')[1])
+        metadata_key = "fact_vehicle_trace/date={0}/partition_name={1}/{1}.csv".format(query_date, source_id)
+        response = s3.head_object(Bucket=bucket, Key=metadata_key)
+        if 'network' in response["Metadata"]:
+            network = response["Metadata"]['network']
+            inflow_filter = network_filters[network]['inflow_filter']
+            outflow_filter = network_filters[network]['outflow_filter']
+            start_filter = network_filters[network]['warmup_steps']
+        query_name = table.upper()
+        result_location = 's3://circles.data.pipeline/{}/date={}/partition_name={}_{}'.format(table,
+                                                                                              query_date,
+                                                                                              source_id,
+                                                                                              query_name)
+        message_body = (query_name, result_location, query_date, partition, inflow_filter, outflow_filter,
+                        start_filter, max_decel, leader_max_decel)
+        message_body = json.dumps(message_body)
+        sqs.send_message(
+                QueueUrl=queue_url,
+                MessageBody=message_body)
 
 
 def list_source_ids(s3, bucket='circles.data.pipeline'):
@@ -296,10 +295,10 @@ def list_source_ids(s3, bucket='circles.data.pipeline'):
 def collect_metadata_from_config(config_obj):
     """Collect the metadata from the exp_config files."""
     supplied_metadata = dict()
-    supplied_metadata['version'] = [getattr(config_obj, 'VERSION', '3.0')]
-    supplied_metadata['on_ramp'] = [str(getattr(config_obj, 'ON_RAMP', False))]
-    supplied_metadata['penetration_rate'] = [str(100.0 * getattr(config_obj, 'PENETRATION_RATE', 0.0))]
-    supplied_metadata['road_grade'] = [str(getattr(config_obj, 'ROAD_GRADE', False))]
+    supplied_metadata['version'] = getattr(config_obj, 'VERSION', '3.0')
+    supplied_metadata['on_ramp'] = str(getattr(config_obj, 'ON_RAMP', False))
+    supplied_metadata['penetration_rate'] = str(100.0 * getattr(config_obj, 'PENETRATION_RATE', 0.0))
+    supplied_metadata['road_grade'] = str(getattr(config_obj, 'ROAD_GRADE', False))
     return supplied_metadata
 
 

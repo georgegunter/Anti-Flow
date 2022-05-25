@@ -18,7 +18,6 @@ from gym.spaces import Box
 from gym.spaces import Tuple
 from traci.exceptions import FatalTraCIError
 from traci.exceptions import TraCIException
-
 import sumolib
 
 
@@ -191,6 +190,9 @@ class Env(gym.Env, metaclass=ABCMeta):
 
         # store the initial vehicle ids
         self.initial_ids = deepcopy(self.network.vehicles.ids)
+
+        # used for post-experiment metrics
+        self.crash = False
 
         # store the initial state of the vehicles kernel (needed for restarting
         # the simulation)
@@ -390,11 +392,15 @@ class Env(gym.Env, metaclass=ABCMeta):
                 self.k.vehicle.update_vehicle_colors()
 
             # crash encodes whether the simulator experienced a collision
-            crash = self.k.simulation.check_collision()
+            self.crash = self.k.simulation.check_collision()
 
-            # stop collecting new simulation steps if there is a collision
-            if crash:
-                break
+            # report crash
+            if self.crash:
+                if self.env_params.raise_on_crash:
+                    # stop collecting new simulation steps if there is a collision
+                    raise Exception('Collision occurred. Ending simulation...')
+                else:
+                    print('Crash: ' + str(self.crash))
 
             # render a frame
             self.render()
@@ -419,9 +425,9 @@ class Env(gym.Env, metaclass=ABCMeta):
         # compute the reward
         if self.env_params.clip_actions:
             rl_clipped = self.clip_actions(rl_actions)
-            reward = self.compute_reward(rl_clipped, fail=crash)
+            reward = self.compute_reward(rl_clipped, fail=self.crash)
         else:
-            reward = self.compute_reward(rl_actions, fail=crash)
+            reward = self.compute_reward(rl_actions, fail=self.crash)
 
         return next_observation, reward, done, infos
 

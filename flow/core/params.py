@@ -9,8 +9,9 @@ from flow.controllers.rlcontroller import RLController
 from flow.controllers.lane_change_controllers import SimLaneChangeController
 from flow.energy_models.toyota_energy import PriusEnergy
 from flow.energy_models.toyota_energy import TacomaEnergy
-from flow.energy_models.power_demand import PDMCombustionEngine
-from flow.energy_models.power_demand import PDMElectric
+from flow.energy_models.power_demand import PDMCombustionEngine, PDMElectric
+from flow.energy_models.poly_fit_autonomie import PFMCompactSedan, PFMMidsizeSedan, PFM2019RAV4,\
+    PFMMidsizeSUV, PFMLightDutyPickup, PFMClass3PNDTruck, PFMClass8TractorTrailer
 
 
 SPEED_MODES = {
@@ -43,8 +44,9 @@ LC_MODES = {
     "only_right_drive_safe": 576
 }
 
-ENERGY_MODELS = set([PriusEnergy, TacomaEnergy, PDMCombustionEngine, PDMElectric])
-DEFAULT_ENERGY_MODEL = PDMCombustionEngine
+ENERGY_MODELS = set([PriusEnergy, TacomaEnergy, PDMCombustionEngine, PDMElectric, PFMCompactSedan, PFMMidsizeSedan,
+                     PFM2019RAV4, PFMMidsizeSUV, PFMLightDutyPickup, PFMClass3PNDTruck, PFMClass8TractorTrailer])
+DEFAULT_ENERGY_MODEL = PFMMidsizeSedan
 
 # Traffic light defaults
 PROGRAM_ID = 1
@@ -269,7 +271,7 @@ class VehicleParams:
             num_vehicles=0,
             car_following_params=None,
             lane_change_params=None,
-            energy_model=DEFAULT_ENERGY_MODEL,
+            energy_model=None,
             color=None):
         """Add a sequence of vehicles to the list of vehicles in the network.
 
@@ -306,11 +308,19 @@ class VehicleParams:
             # FIXME: depends on simulator
             lane_change_params = SumoLaneChangeParams()
 
-        if energy_model not in ENERGY_MODELS:
-            print('{} for vehicle {} is not a valid energy model. Defaulting to {}\n'.format(energy_model,
-                                                                                             veh_id,
-                                                                                             DEFAULT_ENERGY_MODEL))
-            energy_model = DEFAULT_ENERGY_MODEL
+        if energy_model is None:
+            if veh_id.lower().startswith(('av', 'rl')):
+                energy_model = PFM2019RAV4
+            elif veh_id.lower().startswith('truck'):
+                energy_model = PFMClass8TractorTrailer
+            else:
+                energy_model = PFMMidsizeSedan
+        else:
+            if energy_model not in ENERGY_MODELS:
+                print('{} for vehicle {} is not a valid energy model. Defaulting to {}\n'.format(energy_model,
+                                                                                                 veh_id,
+                                                                                                 DEFAULT_ENERGY_MODEL))
+                energy_model = DEFAULT_ENERGY_MODEL
 
         type_params = {}
         type_params.update(car_following_params.controller_params)
@@ -718,7 +728,8 @@ class EnvParams:
                  sims_per_step=1,
                  evaluate=False,
                  clip_actions=True,
-                 done_at_exit=True):
+                 done_at_exit=True,
+                 raise_on_crash=False):
         """Instantiate EnvParams."""
         self.additional_params = \
             additional_params if additional_params is not None else {}
@@ -728,6 +739,7 @@ class EnvParams:
         self.evaluate = evaluate
         self.clip_actions = clip_actions
         self.done_at_exit = done_at_exit
+        self.raise_on_crash = raise_on_crash
 
     def get_additional_param(self, key):
         """Return a variable from additional_params."""
@@ -902,8 +914,8 @@ class SumoCarFollowingParams:
     def __init__(
             self,
             speed_mode='right_of_way',
-            accel=2.6,
-            decel=4.5,
+            accel=1.3,
+            decel=3.0,
             sigma=0.5,
             tau=1.0,  # past 1 at sim_step=0.1 you no longer see waves
             min_gap=2.5,
@@ -912,6 +924,7 @@ class SumoCarFollowingParams:
             speed_dev=0.1,
             impatience=0.5,
             car_follow_model="IDM",
+            length=5.0,
             **kwargs):
         """Instantiate SumoCarFollowingParams."""
         # check for deprecations (minGap)
@@ -951,6 +964,7 @@ class SumoCarFollowingParams:
             "speedDev": speed_dev,
             "impatience": impatience,
             "carFollowModel": car_follow_model,
+            "length": length
         }
 
         # adjust the speed mode value
@@ -1284,6 +1298,10 @@ class InFlows:
             new_val = kwargs[old]
             del kwargs[old]
             return new_val
+
+        # defualt name to veh_type
+        if name == "flow":
+            name = veh_type
 
         if "vehsPerHour" in kwargs:
             vehs_per_hour = deprecate("vehsPerHour", "vehs_per_hour")

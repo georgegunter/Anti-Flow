@@ -152,7 +152,10 @@ class TraCISimulation(KernelSimulation):
 
     def check_collision(self):
         """See parent class."""
-        return self.kernel_api.simulation.getStartingTeleportNumber() != 0
+        collision_check_start = self.kernel_api.simulation.getStartingTeleportNumber() != 0
+        collision_check_end = self.kernel_api.simulation.getEndingTeleportNumber() != 0
+
+        return collision_check_start or collision_check_end
 
     def start_simulation(self, network, sim_params):
         """Start a sumo simulation instance.
@@ -181,16 +184,22 @@ class TraCISimulation(KernelSimulation):
                 # port number the sumo instance will be run on
                 port = sim_params.port
 
+                # Add the singularity image call, if required.
+                if os.environ.get("USE_SINGULARITY", 0):
+                    sumo_call = [config.SINGULARITY_PATH]
+                else:
+                    sumo_call = []
+
                 sumo_binary = "sumo-gui" if sim_params.render is True \
                     else "sumo"
 
                 # command used to start sumo
-                sumo_call = [
+                sumo_call.extend([
                     sumo_binary, "-c", network.cfg,
                     "--remote-port", str(sim_params.port),
                     "--num-clients", str(sim_params.num_clients),
                     "--step-length", str(sim_params.sim_step)
-                ]
+                ])
 
                 # disable all collisions and teleporting in the simulation.
                 if sim_params.disable_collisions:

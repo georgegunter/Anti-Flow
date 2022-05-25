@@ -481,7 +481,9 @@ class IDMController(BaseController):
                  noise=0,
                  fail_safe=None,
                  display_warnings=True,
-                 car_following_params=None):
+                 car_following_params=None,
+                 control_length=None,
+                 no_control_edges=None):
         """Instantiate an IDM controller."""
         BaseController.__init__(
             self,
@@ -491,6 +493,8 @@ class IDMController(BaseController):
             fail_safe=fail_safe,
             noise=noise,
             display_warnings=display_warnings,
+            control_length=control_length,
+            no_control_edges=no_control_edges
         )
         self.v0 = v0
         self.T = T
@@ -533,6 +537,83 @@ class IDMController(BaseController):
                 (2 * np.sqrt(self.a * self.b)))
 
         return self.a * (1 - (this_vel / self.v0)**self.delta - (s_star / h)**2)
+
+
+class IDMLinearRelaxationController(IDMController):
+    """IDM Controller with a linear relaxation.
+
+    See: https://ieeexplore.ieee.org/document/7995897
+
+    Attributes
+    ----------
+    veh_id : str
+        Vehicle ID for SUMO identification
+    v_des : float
+        desired velocity
+    gamma : float
+        gain
+    v0 : float
+        desirable velocity, in m/s (default: 30)
+    T : float
+        safe time headway, in s (default: 1)
+    a : float
+        max acceleration, in m/s2 (default: 1)
+    b : float
+        comfortable deceleration, in m/s2 (default: 1.5)
+    delta : float
+        acceleration exponent (default: 4)
+    s0 : float
+        linear jam distance, in m (default: 2)
+    noise : float
+        std dev of normal perturbation to the acceleration (default: 0)
+    fail_safe : str
+        type of flow-imposed failsafe the vehicle should posses, defaults
+        to no failsafe (None)
+    car_following_params : flow.core.param.SumoCarFollowingParams
+        see parent class
+    """
+
+    def __init__(self,
+                 veh_id,
+                 v_des,
+                 gamma,
+                 v0=30,
+                 T=1,
+                 a=1,
+                 b=1.5,
+                 delta=4,
+                 s0=2,
+                 time_delay=0.0,
+                 noise=0,
+                 fail_safe=None,
+                 display_warnings=True,
+                 car_following_params=None,
+                 control_length=None,
+                 no_control_edges=None
+                 ):
+        """Instantiate an IDM controller and the linear relaxation parameters."""
+        super(IDMLinearRelaxationController, self).__init__(
+            veh_id=veh_id,
+            v0=v0,
+            T=T,
+            a=a,
+            b=b,
+            delta=delta,
+            s0=s0,
+            time_delay=time_delay,
+            noise=noise,
+            fail_safe=fail_safe,
+            display_warnings=display_warnings,
+            car_following_params=car_following_params,
+            control_length=control_length,
+            no_control_edges=no_control_edges
+        )
+        self.v_des = v_des
+        self.gamma = gamma
+
+    def get_accel(self, env):
+        """See parent class."""
+        return super().get_accel(env) + self.gamma * (self.v_des - env.k.vehicle.get_speed(self.veh_id))
 
 
 class SimCarFollowingController(BaseController):

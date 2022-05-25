@@ -1,6 +1,7 @@
 """A series of reward functions."""
 
 import numpy as np
+import os
 
 
 def desired_velocity(env, fail=False, edge_list=None):
@@ -356,6 +357,9 @@ def veh_energy_consumption(env, veh_ids=None, gain=.001):
             speed = env.k.vehicle.get_speed(veh_id)
             accel = env.k.vehicle.get_accel(veh_id, noise=False, failsafe=True)
             grade = env.k.vehicle.get_road_grade(veh_id)
+            if getattr(energy_model, "flag_infeasible_accel", None) and not os.environ.get("TEST_FLAG", False):
+                if energy_model.flag_infeasible_accel(accel, speed, grade):
+                    print("(v,a) pair infeasible for vehicle {}: ({},{})".format(veh_id, speed, accel))
             power += energy_model.get_instantaneous_power(accel, speed, grade)
 
     return -gain * power

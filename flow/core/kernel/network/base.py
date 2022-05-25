@@ -203,6 +203,23 @@ class BaseKernelNetwork(object):
         """
         raise NotImplementedError
 
+    def road_grade(self, edge, pos):
+        """Return the road grade of the network for a given edge and position.
+
+        Parameters
+        ----------
+        edge : str
+            the name of the edge on the network
+        pos : float
+            the position of the vehicle relative to the start of the edge
+
+        Returns
+        -------
+        float
+            the road grade
+        """
+        raise NotImplementedError
+
     ###########################################################################
     #            Methods for generating initial vehicle positions.            #
     ###########################################################################

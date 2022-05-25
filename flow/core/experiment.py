@@ -6,7 +6,7 @@ from flow.data_pipeline.data_pipeline import get_configuration
 from flow.data_pipeline.data_pipeline import generate_trajectory_table
 from flow.data_pipeline.data_pipeline import write_dict_to_csv
 from flow.data_pipeline.leaderboard_utils import network_name_translate
-from flow.core.rewards import veh_energy_consumption
+from flow.core.rewards import veh_energy_consumption, instantaneous_mpg
 from flow.visualize.time_space_diagram import tsd_main
 from collections import defaultdict
 from datetime import timezone
@@ -174,7 +174,10 @@ class Experiment:
             "outflows": [],
             "avg_trip_energy": [],
             "avg_trip_time": [],
-            "total_completed_trips": []
+            "total_completed_trips": [],
+            "inst_mpg": [],
+            "avg_accel_human": [],
+            "avg_headway": [],
         }
         if not multiagent:
             info_dict["returns"] = []
@@ -220,11 +223,15 @@ class Experiment:
                 metadata['strategy'].append(strategy)
                 if supplied_metadata is not None:
                     metadata['version'].append(supplied_metadata.get('version'))
-                    if metadata['version'][0] == '3.0':
+                    if metadata['version'][0].startswith('3'):
                         metadata['network'][0] = 'I-210'
                     metadata['on_ramp'].append(supplied_metadata.get('on_ramp'))
                     metadata['penetration_rate'].append(supplied_metadata.get('penetration_rate'))
                     metadata['road_grade'].append(supplied_metadata.get('road_grade'))
+                    metadata['is_benchmark'].append(supplied_metadata.get('is_benchmark'))
+                # replace potential `,` to `;` to avoid unexpected column in CSV
+                metadata['submitter_name'][0] = metadata['submitter_name'][0].replace(',', ';')
+                metadata['strategy'][0] = metadata['strategy'][0].replace(',', ';')
 
             # emission-specific parameters
             dir_path = self.env.sim_params.emission_path
@@ -256,6 +263,8 @@ class Experiment:
             for j in range(num_steps):
                 t0 = time.time()
                 state, reward, done, _ = self.env.step(rl_actions(state))
+                if self.env.crash:
+                    to_aws = False
                 t1 = time.time()
                 times.append(1 / (t1 - t0))
 
@@ -302,6 +311,23 @@ class Experiment:
                     rets[key].append(ret[key])
 
             # Store the information from the run in info_dict.
+            if hasattr(self.env, 'no_control_edges'):
+                veh_ids = [
+                    veh_id for veh_id in self.env.k.vehicle.get_ids()
+                    if self.env.k.vehicle.get_speed(veh_id) >= 0
+                    and self.env.k.vehicle.get_edge(veh_id) not in self.env.no_control_edges
+                ]
+                # rl_ids = [
+                #     veh_id for veh_id in self.env.k.vehicle.get_rl_ids()
+                #     if self.env.k.vehicle.get_speed(veh_id) >= 0
+                #     and self.env.k.vehicle.get_edge(veh_id) not in self.env.no_control_edges
+                # ]
+            else:
+                veh_ids = [veh_id for veh_id in self.env.k.vehicle.get_ids()
+                           if self.env.k.vehicle.get_speed(veh_id) >= 0]
+                # rl_ids = [veh_id for veh_id in self.env.k.vehicle.get_rl_ids()
+                #           if self.env.k.vehicle.get_speed(veh_id) >= 0]
+
             outflow = self.env.k.vehicle.get_outflow_rate(int(500))
             if not multiagent:
                 info_dict["returns"].append(ret)
@@ -310,6 +336,15 @@ class Experiment:
             info_dict["avg_trip_energy"].append(np.mean(list(completed_vehicle_avg_energy.values())))
             info_dict["avg_trip_time"].append(np.mean(list(completed_vehicle_travel_time.values())))
             info_dict["total_completed_trips"].append(len(list(completed_vehicle_avg_energy.values())))
+            info_dict["lane_change_count"] = self.env.k.vehicle.lane_change_count
+            info_dict["inst_mpg"].append(instantaneous_mpg(self.env, veh_ids, gain=1.0))
+            info_dict["avg_accel_human"].append(np.nan_to_num(np.mean(
+                [np.abs((self.env.k.vehicle.get_speed(veh_id) -
+                 self.env.k.vehicle.get_previous_speed(veh_id))/self.env.sim_step) for
+                 veh_id in veh_ids if veh_id in self.env.k.vehicle.previous_speeds.keys()]
+            )))
+            info_dict["avg_headway"].append(np.mean(self.env.k.vehicle.get_headway(veh_ids)))
+
             for key in custom_vals.keys():
                 info_dict[key].append(np.mean(custom_vals[key]))
 
@@ -335,6 +370,7 @@ class Experiment:
         self.env.terminate()
 
         if to_aws:
+            print("The source id of this submission is {}.".format(source_id))
             write_dict_to_csv(metadata_table_path, metadata, True)
             generate_trajectory_table(emission_files, trajectory_table_path, source_id)
             tsd_main(
@@ -345,7 +381,7 @@ class Experiment:
                     'sim': self.env.sim_params
                 },
                 min_speed=0,
-                max_speed=10
+                max_speed=26
             )
             upload_to_s3(
                 'circles.data.pipeline',
@@ -359,7 +395,10 @@ class Experiment:
                 '{1}.csv'.format(cur_date, source_id),
                 trajectory_table_path,
                 {'network': metadata['network'][0],
-                 'is_baseline': metadata['is_baseline'][0]}
+                 'is_baseline': metadata['is_baseline'][0],
+                 'version': metadata['version'][0],
+                 'on_ramp': metadata['on_ramp'][0],
+                 'road_grade': metadata['road_grade'][0]}
             )
             upload_to_s3(
                 'circles.data.pipeline',
@@ -368,5 +407,7 @@ class Experiment:
                 emission_files[0].replace('csv', 'png')
             )
             os.remove(trajectory_table_path)
-
-        return info_dict
+        if(convert_to_csv):
+            return info_dict, emission_files
+        else:
+            return info_dict

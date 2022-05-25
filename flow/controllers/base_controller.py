@@ -51,7 +51,9 @@ class BaseController(metaclass=ABCMeta):
                  delay=0,
                  fail_safe=None,
                  display_warnings=True,
-                 noise=0):
+                 noise=0,
+                 control_length=None,
+                 no_control_edges=None):
         """Instantiate the base class for acceleration behavior."""
         self.veh_id = veh_id
 
@@ -93,6 +95,9 @@ class BaseController(metaclass=ABCMeta):
         self.car_following_params = car_following_params
 
         self._is_highway_i210 = None
+
+        self.control_length = control_length
+        self.no_control_edges = no_control_edges
 
     @abstractmethod
     def get_accel(self, env):
@@ -333,7 +338,15 @@ class BaseController(metaclass=ABCMeta):
         lead_max_deaccel = lead_control.max_deaccel
 
         h = env.k.vehicle.get_headway(self.veh_id)
-        assert (h > 0), print('the headway is less than zero! Seems wrong.')
+        assert (h > 0), print(
+            'the headway is less than zero: {}\n'
+            'veh_id: {}, edge: {}\n'
+            'leader_id: {}, edge: {}'.format(h,
+                                             self.veh_id,
+                                             env.k.vehicle.get_edge(self.veh_id),
+                                             lead_id,
+                                             env.k.vehicle.get_edge(lead_id)))
+
         min_gap = self.car_following_params.controller_params['minGap']
 
         is_ballistic = env.sim_params.use_ballistic

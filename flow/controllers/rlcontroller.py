@@ -31,12 +31,13 @@ class RLController(BaseController):
         >>> rl_ids = env.k.vehicle.get_rl_ids()
     """
 
-    def __init__(self, veh_id, car_following_params, fail_safe=None):
+    def __init__(self, veh_id, car_following_params, display_warnings=True, fail_safe=None):
         """Instantiate an RL Controller."""
         BaseController.__init__(
             self,
             veh_id,
             car_following_params,
+            display_warnings=display_warnings,
             fail_safe=fail_safe,
         )
 

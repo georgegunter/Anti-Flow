@@ -21,7 +21,10 @@ AWS_S3_PATH = "s3://bucket_name"
 # path to the Aimsun_Next main directory (required for Aimsun simulations)
 AIMSUN_NEXT_PATH = os.environ.get("AIMSUN_NEXT_PATH", None)
 
-
 # path to the aimsun_flow environment's main directory (required for Aimsun
 # simulations)
 AIMSUN_SITEPACKAGES = os.environ.get("AIMSUN_SITEPACKAGES", None)
+
+# path to the singularity file. Only relevant is USE_SINGULARITY is set, i.e.
+# via the command: export ``USE_SINGULARITY=1``
+SINGULARITY_PATH = "/path/to/ubuntu.simg"

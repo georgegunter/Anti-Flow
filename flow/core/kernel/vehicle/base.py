@@ -773,7 +773,9 @@ class KernelVehicle(object, metaclass=ABCMeta):
         """Return the acceleration that the vehicle actually make."""
         pass
 
-    @abstractmethod
     def get_road_grade(self, veh_id):
         """Return the road-grade of the vehicle with veh_id."""
-        pass
+        return self.master_kernel.network.road_grade(
+            edge=self.get_edge(veh_id),
+            pos=self.get_position(veh_id),
+        )

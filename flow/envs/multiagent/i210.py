@@ -482,6 +482,27 @@ class I210TestEnv(I210MultiEnv):
         return {'fake': np.array([])}
 
 
+class I210TransferEnv(I210MultiEnv):
+    """Env used for transfer tests.
+
+    Almost virtually the same, but with an additional_command method that allows further
+    flexibility, in particular with outflow speed, which must be called after reset.
+    """
+
+    def __init__(self, env_params, sim_params, network, simulator, outflow_speed_limit=None):
+        super().__init__(env_params, sim_params, network, simulator)
+        self.outflow_speed_limit = \
+            env_params.additional_params.get('outflow_speed_limit',
+                                             self.env_params.additional_params.get("max_downstream_speed"))
+
+    def reset(self, new_inflow_rate=None):
+        """Reset the environment."""
+        state = super().reset(new_inflow_rate=new_inflow_rate)
+        # Update the outflow rate
+        self.k.kernel_api.edge.setMaxSpeed("119257908#3", self.outflow_speed_limit)
+        return state
+
+
 class MultiStraightRoad(I210MultiEnv):
     """Partially observable multi-agent environment for a straight road. Look at superclass for more information."""
 
@@ -506,6 +527,140 @@ class MultiStraightRoad(I210MultiEnv):
 
             # prevent the AV from blocking the entrance
             self.k.vehicle.apply_acceleration(rl_ids, accels)
+
+
+class I24MultiEnv(MultiEnv):
+    """
+    Partially observable multi-agent environment for the I-24 subnetwork.
+
+    Slight modification of the I210MultiEnv and I210TestEnv to make it work for the I-24 env.
+    """
+
+    def __init__(self, env_params, sim_params, network, simulator='traci'):
+        super().__init__(env_params, sim_params, network, simulator)
+        self.lead_obs = env_params.additional_params.get("lead_obs")
+        self.reroute_on_exit = env_params.additional_params.get("reroute_on_exit")
+        self.max_lanes = MAX_LANES
+        self.num_enter_lanes = 5
+
+        self.entrance_edge = self.network.routes['main_route_west'][0][0][0]
+        self.exit_edge = self.network.routes['main_route_west'][0][0][-1]
+        self.control_range = env_params.additional_params.get('control_range', None)
+        self.no_control_edges = env_params.additional_params.get('no_control_edges', [])
+
+        # dynamics controller for uncontrolled RL vehicles (mimics humans)
+        controller = self.k.vehicle.type_parameters["human"][
+            "acceleration_controller"]
+        self._human_controller = controller[0](
+            veh_id="av_main",
+            car_following_params=self.k.vehicle.type_parameters["human"][
+                "car_following_params"],
+            **controller[1]
+        )
+
+    @property
+    def action_space(self):
+        """See parent class."""
+        return Box(
+            low=-np.abs(self.env_params.additional_params['max_decel']),
+            high=self.env_params.additional_params['max_accel'],
+            shape=(1,),
+            dtype=np.float32)
+
+    @property
+    def observation_space(self):
+        """See parent class."""
+        return Box(low=0, high=0, shape=(2,), dtype=np.float32)
+
+    def _apply_rl_actions(self, rl_actions):
+        return
+
+    def compute_reward(self, rl_actions, **kwargs):
+        """See parent class."""
+        if rl_actions:
+            return {'av': 0}
+        else:
+            return 0
+
+    def get_state(self, **kwargs):
+        """See class definition."""
+        state = {'av': np.zeros(2)}
+        return state
+
+    def in_control_range(self, veh_id):
+        """Return if a veh_id is on an edge that is allowed to be controlled.
+
+        If control range is defined it uses control range, otherwise it searches over a set of edges
+        """
+        return (self.control_range and self.control_range[1] >
+                self.k.vehicle.get_x_by_id(veh_id) > self.control_range[0]) or \
+               (len(self.no_control_edges) > 0 and self.k.vehicle.get_edge(veh_id) not in
+                self.no_control_edges)
+
+    def veh_statistics(self, rl_id):
+        """Return speed, edge information, and x, y about the vehicle itself."""
+        speed = self.k.vehicle.get_speed(rl_id) / 100.0
+        lane = (self.k.vehicle.get_lane(rl_id) + 1) / 10.0
+        return np.array([speed, lane])
+
+    def step(self, rl_actions):
+        """See parent class for more details; add option to reroute vehicles."""
+        state, reward, done, info = super().step(rl_actions)
+        if done['__all__']:
+            # handle the edge case where a vehicle hasn't been put back when the rollout terminates
+            if self.reroute_on_exit:
+                for rl_id in self.reroute_rl_ids:
+                    if rl_id not in state.keys():
+                        done[rl_id] = True
+                        reward[rl_id] = 0
+                        state[rl_id] = -1 * np.ones(self.observation_space.shape[0])
+            # you have to catch the vehicles on the exit edge, they have not yet
+            # recieved a done when the env terminates
+            on_exit_edge = [rl_id for rl_id in self.k.vehicle.get_rl_ids()
+                            if self.k.vehicle.get_edge(rl_id) == self.exit_edge]
+            for rl_id in on_exit_edge:
+                done[rl_id] = True
+                reward[rl_id] = 0
+                state[rl_id] = -1 * np.ones(self.observation_space.shape[0])
+
+        return state, reward, done, info
+
+    def additional_command(self):
+        """See parent class.
+
+        Define which vehicles are observed for visualization purposes. Additionally, optionally reroute vehicles
+        back once they have exited.
+        """
+        # In the warmup period all vehicles act as humans.
+        if self.time_counter < \
+                self.env_params.warmup_steps * self.env_params.sims_per_step:
+            uncontrolled_veh_ids = [veh_id for veh_id in self.k.vehicle.get_ids() if
+                                    "av" in self.k.vehicle.get_type(veh_id)]
+
+        # If no control range is specified, all vehicles are controlled.
+        elif len(self.no_control_edges) == 0:
+            uncontrolled_veh_ids = []
+
+        # Vehicles in the control_range are controlled, others act as humans.
+        else:
+            uncontrolled_veh_ids = []
+            for veh_id in self.k.vehicle.get_ids():
+                if not self.in_control_range(veh_id) and "av" in self.k.vehicle.get_type(veh_id):
+                    uncontrolled_veh_ids.append(veh_id)
+
+        # Assign accelerations to uncontrolled vehicles.
+        for veh_id in uncontrolled_veh_ids:
+            self._human_controller.veh_id = veh_id
+            acceleration = self._human_controller.get_action(self)
+            self.k.vehicle.apply_acceleration(veh_id, acceleration)
+
+        super().additional_command()
+        # specify observed vehicles
+        for rl_id in self.k.vehicle.get_rl_ids():
+            # leader
+            lead_id = self.k.vehicle.get_leader(rl_id)
+            if lead_id:
+                self.k.vehicle.set_observed(lead_id)
 
 
 class StraightRoadTestEnv(MultiStraightRoad):

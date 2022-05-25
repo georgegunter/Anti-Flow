@@ -103,18 +103,18 @@ class MultiEnv(MultiAgentEnv, Env):
                 self.k.vehicle.update_vehicle_colors()
 
             # crash encodes whether the simulator experienced a collision
-            crash = self.k.simulation.check_collision()
+            self.crash = self.k.simulation.check_collision()
 
             # stop collecting new simulation steps if there is a collision
-            if crash:
+            if self.crash:
                 print('A CRASH! A CRASH!!!!!! AAAAAAAAAH!!!!!')
                 break
 
         states = self.get_state()
         done = {key: key in self.k.vehicle.get_arrived_ids()
                 for key in states.keys()}
-        if crash or (self.time_counter >= self.env_params.sims_per_step *
-                     (self.env_params.warmup_steps + self.env_params.horizon)):
+        if self.crash or (self.time_counter >= self.env_params.sims_per_step *
+                          (self.env_params.warmup_steps + self.env_params.horizon)):
             done['__all__'] = True
         else:
             done['__all__'] = False
@@ -123,9 +123,9 @@ class MultiEnv(MultiAgentEnv, Env):
         # compute the reward
         if self.env_params.clip_actions:
             clipped_actions = self.clip_actions(rl_actions)
-            reward = self.compute_reward(clipped_actions, fail=crash)
+            reward = self.compute_reward(clipped_actions, fail=self.crash)
         else:
-            reward = self.compute_reward(rl_actions, fail=crash)
+            reward = self.compute_reward(rl_actions, fail=self.crash)
 
         if self.env_params.done_at_exit:
             for rl_id in self.k.vehicle.get_arrived_rl_ids(self.env_params.sims_per_step):

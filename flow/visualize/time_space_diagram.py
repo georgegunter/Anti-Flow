@@ -17,7 +17,8 @@ Usage
     python time_space_diagram.py </path/to/emission>.csv </path/to/params>.json
 """
 from flow.utils.rllib import get_flow_params
-from flow.networks import RingNetwork, FigureEightNetwork, MergeNetwork, I210SubNetwork, HighwayNetwork
+from flow.networks import RingNetwork, FigureEightNetwork, MergeNetwork,\
+    I210SubNetwork, I24SubNetwork, HighwayNetwork
 
 import argparse
 from collections import defaultdict
@@ -40,6 +41,7 @@ ACCEPTABLE_NETWORKS = [
     FigureEightNetwork,
     MergeNetwork,
     I210SubNetwork,
+    I24SubNetwork,
     HighwayNetwork
 ]
 
@@ -47,11 +49,13 @@ ACCEPTABLE_NETWORKS = [
 USE_EDGESTARTS = set([
     RingNetwork,
     FigureEightNetwork,
-    MergeNetwork
+    MergeNetwork,
+    I24SubNetwork
 ])
 
 GHOST_DICT = defaultdict(dict)
 GHOST_DICT[I210SubNetwork] = {'ghost_edges': {'ghost0', '119257908#3'}}
+GHOST_DICT[I24SubNetwork] = {'ghost_edges': {'Westbound_2', 'Westbound_7'}}
 GHOST_DICT[HighwayNetwork] = {'ghost_bounds': (500, 2300)}
 
 
@@ -88,14 +92,14 @@ def import_data_from_trajectory(fp, params=dict()):
     df = df.rename(columns=column_conversions)
     if network in USE_EDGESTARTS:
         df['distance'] = _get_abs_pos(df, params)
-
     start = params['env'].warmup_steps * params['env'].sims_per_step * params['sim'].sim_step
     # produce upper and lower bounds for the non-greyed-out domain
     ghost_edges = GHOST_DICT[network].get('ghost_edges')
     ghost_bounds = GHOST_DICT[network].get('ghost_bounds')
     if ghost_edges:
-        domain_lb = df[~df['edge_id'].isin(ghost_edges)]['distance'].min()
-        domain_ub = df[~df['edge_id'].isin(ghost_edges)]['distance'].max()
+        main_ids = df[df['edge_id'].isin(ghost_edges)]['id'].unique()
+        domain_lb = df[(df['id'].isin(main_ids)) & (~df['edge_id'].isin(ghost_edges))]['distance'].min()
+        domain_ub = df[(df['id'].isin(main_ids)) & (~df['edge_id'].isin(ghost_edges))]['distance'].max()
     elif ghost_bounds:
         domain_lb = ghost_bounds[0]
         domain_ub = ghost_bounds[1]
@@ -153,6 +157,7 @@ def get_time_space_data(data, network):
         MergeNetwork: _merge,
         FigureEightNetwork: _figure_eight,
         I210SubNetwork: _i210_subnetwork,
+        I24SubNetwork: _i24_subnetwork,
         HighwayNetwork: _highway,
     }
 
@@ -236,6 +241,7 @@ def _ring_road(data):
     pd.DataFrame
         unmodified trajectory dataframe
     """
+    data = data[data['next_pos'] > data['distance']]
     segs = data[['time_step', 'distance', 'next_time', 'next_pos']].values.reshape((len(data), 2, 2))
 
     return segs, data
@@ -267,6 +273,45 @@ def _i210_subnetwork(data):
     offset_edges = set(data[data['lane_id'] == 5]['edge_id'].unique())
     data.loc[~data['edge_id'].isin(offset_edges), 'lane_id'] = \
         data[~data['edge_id'].isin(offset_edges)]['lane_id'] + 1
+
+    segs = dict()
+    for lane, df in data.groupby('lane_id'):
+        segs[lane] = df[['time_step', 'distance', 'next_time', 'next_pos']].values.reshape((len(df), 2, 2))
+
+    return segs, data
+
+
+def _i24_subnetwork(data):
+    r"""Generate time and position data for the i24 subnetwork.
+
+    We generate plots for all lanes, so the segments are wrapped in
+    a dictionary.
+
+    Parameters
+    ----------
+    data : pd.DataFrame
+        cleaned dataframe of the trajectory data
+
+    Returns
+    -------
+    dict < str, np.ndarray >
+        dictionary of 3d array (n_segments x 2 x 2) containing segments
+        to be plotted. the dictionary is keyed on lane numbers, with the
+        values being the 3d array representing the segments. every inner
+        2d array is comprised of two 1d arrays representing
+        [start time, start distance] and [end time, end distance] pairs.
+    pd.DataFrame
+        modified trajectory dataframe
+    """
+    # Reset lane numbers that are offset by ramp lanes
+    ramp_edges = set([
+        'Westbound_On_1',
+        ':202185444_0',
+        'Westbound_4',
+        ':202192541_0',
+        'Westbound_Off_2'])
+    data.loc[~data['edge_id'].isin(ramp_edges), 'lane_id'] = \
+        data[~data['edge_id'].isin(ramp_edges)]['lane_id'] + 1
 
     segs = dict()
     for lane, df in data.groupby('lane_id'):
@@ -393,9 +438,28 @@ def _get_abs_pos(df, params):
             ':1842086610_1': 1780.2599999999056,
             '119257908#3': 1784.7899999996537,
         }
+    elif params['network'] == I24SubNetwork:
+        edgestarts = {
+            'Westbound_2': -4.600000000000193,
+            ':202177572_1': 392.4199999999998,
+            'Westbound_3': 415.61999999999955,
+            'Westbound_On_1': 635.1099999999994,
+            ':202185444_1': 961.7699999999996,
+            ':202185444_0': 963.0999999999995,
+            'Westbound_4': 987.3099999999993,
+            ':202192541_0': 1527.2599999999993,
+            ':202192541_1': 1527.2599999999993,
+            'Westbound_Off_2': 1540.5999999999992,
+            'Westbound_5': 1540.7299999999993,
+            ':306535021_0': 1688.1499999999996,
+            'Westbound_6': 1688.4899999999993,
+            ':306535022_0': 1738.4099999999999,
+            'Westbound_7': 1738.8399999999992,
+        }
     else:
         edgestarts = defaultdict(float)
 
+    df = df[df['edge_id'].notna()]
     ret = df.apply(lambda x: x['relative_position'] + edgestarts[x['edge_id']], axis=1)
 
     if params['network'] == FigureEightNetwork:
@@ -450,8 +514,10 @@ def plot_tsd(df, network, cmap, min_speed=0, max_speed=10, start=0, domain_bound
     if nlanes == 1:
         segs = [segs]
 
+    lane_count = 0
     for lane, lane_df in df.groupby('lane_id'):
-        ax = plt.subplot(nlanes, 1, lane+1)
+        lane_count += 1
+        ax = plt.subplot(nlanes, 1, lane_count)
 
         lc = LineCollection(segs[lane], cmap=cmap, norm=norm)
         lc.set_array(lane_df['speed'].values)
@@ -472,7 +538,10 @@ def plot_tsd(df, network, cmap, min_speed=0, max_speed=10, start=0, domain_bound
         ax.add_collection(pc)
 
         if nlanes > 1:
-            ax.set_title('Time-Space Diagram: Lane {}'.format(lane), fontsize=25)
+            if lane == 0:
+                ax.set_title('Time-Space Diagram: Ramp/Merge Lane', fontsize=25)
+            else:
+                ax.set_title('Time-Space Diagram: Lane {}'.format(lane), fontsize=25)
         else:
             ax.set_title('Time-Space Diagram', fontsize=25)
 
@@ -480,7 +549,7 @@ def plot_tsd(df, network, cmap, min_speed=0, max_speed=10, start=0, domain_bound
         ax.set_ylim(ymin - ybuffer, ymax + ybuffer)
 
         ax.set_ylabel('Position (m)', fontsize=20)
-        if lane == nlanes - 1:
+        if lane_count == nlanes:
             ax.set_xlabel('Time (s)', fontsize=20)
         plt.xticks(fontsize=18)
         plt.yticks(fontsize=18)

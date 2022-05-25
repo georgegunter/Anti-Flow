@@ -69,7 +69,8 @@ def lambda_handler(event, context):
             # update baseline if needed
             if table == 'fact_vehicle_trace' \
                     and 'is_baseline' in response['Metadata'] and response['Metadata']['is_baseline'] == 'True':
-                update_baseline(s3, network, source_id)
+                update_baseline(s3, network, source_id, response['Metadata']['version'],
+                                response['Metadata']['on_ramp'], response['Metadata']['road_grade'])
 
         readied_queries = get_ready_queries(completed[source_id], query_name)
         completed[source_id].add(query_name)

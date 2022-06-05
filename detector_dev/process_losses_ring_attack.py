@@ -77,9 +77,9 @@ def train_ring_relative_detector(GPS_penetration_rate,ring_length,emission_path,
 
     return model
 
-def get_losses_complete_obs(emission_path,model):
+def get_losses_complete_obs(emission_path,model,warmup_period=100):
 
-    timeseries_dict = visualize_ring.get_sim_timeseries(emission_path,warmup_period=100)
+    timeseries_dict = visualize_ring.get_sim_timeseries(emission_path,warmup_period=warmup_period)
 
     veh_ids = list(timeseries_dict.keys())
    
@@ -222,6 +222,40 @@ def get_labeled_losses(loss_path_file):
 
     return [ben_losses,mal_losses]
 
+
+def get_all_loss_results_by_sim(loss_results_repo):
+
+    losses_dict = {}
+
+    all_files = os.listdir(loss_results_repo)
+
+    result_files = []
+
+    for file in all_files:
+        if('csv' in file):
+            file_path = os.path.join(loss_results_repo,file)
+            result_files.append(file_path)
+
+    for loss_path_file in result_files:
+
+        [TAD,ADR] = get_attack_params(loss_path_file)
+        key = get_attack_identifier(TAD,ADR)
+
+        if(key not in losses_dict.keys()):
+            losses_dict[key] = dict.fromkeys(['ben','mal'])
+            losses_dict[key]['ben'] = []
+            losses_dict[key]['mal'] = []
+
+        [ben_losses,mal_losses] = get_labeled_losses(loss_path_file)
+
+
+        losses_dict[key]['ben'].append(ben_losses)
+        losses_dict[key]['mal'].append(mal_losses)
+
+    return losses_dict
+
+
+
 def get_all_loss_results(loss_results_repo):
 
     losses_dict = {}
@@ -254,7 +288,7 @@ def get_all_loss_results(loss_results_repo):
 
     return losses_dict
 
-def plot_all_losses_AUC(losses_dict):
+def get_all_losses_AUC(losses_dict):
 
     attack_param_keys = list(losses_dict.keys())
 
@@ -269,36 +303,122 @@ def plot_all_losses_AUC(losses_dict):
 
         for loss in ben_losses:
             labels.append(0)
-            all_losses.append(loss)
+            losses.append(loss)
         for loss in mal_losses:
             labels.append(1)
-            all_losses.append(loss)
+            losses.append(loss)
 
-        fpr, tpr, thresholds = metrics.roc_curve(labels, losses, pos_label=1)
+        fpr, tpr, thresholds = roc_curve(labels, losses, pos_label=1)
 
         auc_val = auc(fpr,tpr)
 
-        temp =  get_attack_params(attack_param_keys[0])
+        temp =  get_attack_params(key)
+
+        auc_results.append([temp[0],temp[1],auc_val])
+
+    return auc_results
+
+def scatter_plot_AUC(auc_results):
+    auc_results_np_arr = np.array(auc_results)
+    plt.scatter(auc_results_np_arr[:,0],auc_results_np_arr[:,1],c=auc_results_np_arr[:,2],s=150)
+    plt.ylabel('Braking rate [m/s^2]',fontsize=20)
+    plt.xlabel('Braking duration [s]',fontsize=20)
+    plt.colorbar()
+
+# def get_classifiction_results(loss_path_file,classifier):
+#     [ben_losses,mal_losses] = get_labeled_losses(loss_path_file)
+
+#     all_losses = []
+
+#     for loss in ben_losses:
+#         all_losses.append(loss)
+#     for loss in mal_losses:
+#         all_losses.append(loss)
+
+#     labels = 
 
 
 
 
 
+# def get_all_loss_results():
+#     model = get_cnn_lstm_ae_model(n_features=4)
 
+#     # Load in a trained model:
+#     MODEL_PATH = '/Users/vanderbilt/Desktop/Research_2022/Anti-Flow/detector_dev/models/cnn_lstm_ae_ringlength600_1lane__1.0percentGPS.pt'
+#     model.load_state_dict(torch.load(MODEL_PATH,map_location=torch.device('cpu')))
+
+#     emission_repo = '/Volumes/My Passport for Mac/single_lane_ring_road_attack_parameter_sweep'
+
+#     loss_results_repo = os.path.join(emission_repo,'loss_results_1.0_GPS')
+
+#     # loss_results_repo = '/Volumes/My Passport for Mac/single_lane_ring_road_attack_parameter_sweep/loss_results_1.0_GPS'
+
+#     loss_results_single_lane = get_all_max_losses_repo(emission_repo,model)
+
+#     write_all_loss_results(loss_results_single_lane,loss_results_repo)
+
+
+#     #initialize a model for loading in:
+#     model = get_cnn_lstm_ae_model(n_features=4)
+
+#     # Load in a trained model:
+#     MODEL_PATH = '/Users/vanderbilt/Desktop/Research_2022/Anti-Flow/detector_dev/models/cnn_lstm_ae_ringlength600_1.0percentGPS.pt'
+#     model.load_state_dict(torch.load(MODEL_PATH,map_location=torch.device('cpu')))
+
+#     emission_repo = '/Volumes/My Passport for Mac/double_lane_ring_road_attack_parameter_sweep'
+
+#     loss_results_repo = os.path.join(emission_repo,'loss_results_1.0_GPS')
+
+#     # loss_results_repo = '/Volumes/My Passport for Mac/double_lane_ring_road_attack_parameter_sweep/loss_results_1.0_GPS'
+
+#     loss_results_double_lane = get_all_max_losses_repo(emission_repo,model)
+
+#     write_all_loss_results(loss_results_double_lane,loss_results_repo)
+
+#     return([loss_results_single_lane,loss_results_double_lane])
 
 
 if __name__ == '__main__':
 
-    #initialize a model for loading in:
+    # # FOR ONE LANE:
+
     # model = get_cnn_lstm_ae_model(n_features=4)
 
     # # Load in a trained model:
     # MODEL_PATH = '/Users/vanderbilt/Desktop/Research_2022/Anti-Flow/detector_dev/models/cnn_lstm_ae_ringlength600_1lane__1.0percentGPS.pt'
     # model.load_state_dict(torch.load(MODEL_PATH,map_location=torch.device('cpu')))
 
+    # # emission_repo = '/Volumes/My Passport for Mac/single_lane_ring_road_attack_parameter_sweep'
+
+    # # loss_results_repo = '/Volumes/My Passport for Mac/double_lane_ring_road_attack_parameter_sweep/loss_results_1.0_GPS'
+
+    # emission_repo = '/Volumes/My Passport for Mac/test'
+
+    # loss_results_repo = os.path.join(emission_repo,'/loss_results_1.0_GPS')
+
+
+    # loss_results = get_all_max_losses_repo(emission_repo,model)
+
+
+
+    # # FOR TWO LANES:
+
+    # initialize a model for loading in:
+    # model = get_cnn_lstm_ae_model(n_features=4)
+
+    # # Load in a trained model:
+    # MODEL_PATH = '/Users/vanderbilt/Desktop/Research_2022/Anti-Flow/detector_dev/models/cnn_lstm_ae_ringlength600_1.0percentGPS.pt'
+    # model.load_state_dict(torch.load(MODEL_PATH,map_location=torch.device('cpu')))
+
     # emission_repo = '/Volumes/My Passport for Mac/double_lane_ring_road_attack_parameter_sweep'
 
     # loss_results_repo = '/Volumes/My Passport for Mac/double_lane_ring_road_attack_parameter_sweep/loss_results_1.0_GPS'
+
+    [loss_results_single_lane,loss_results_double_lane] = get_all_loss_results()
+
+
+
 
 
 

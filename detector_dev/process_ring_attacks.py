@@ -5,6 +5,10 @@ import os
 
 import ray
 
+
+import csv
+
+
 def get_attack_impact_metrics(emission_path):
 	timeseries_dict = get_sim_timeseries_all_data(emission_path,warmup_period=100)
 
@@ -102,16 +106,21 @@ def get_attack_impact_dict_all_ray(emission_repo):
 
 	impact_metric_ids = []	
 
+	num_files = len(emission_files)
+
+	files_processed = 0
+
 	for file in emission_files:
 		if(file[-3:] == 'csv'):
 			emission_path = os.path.join(emission_repo,file)
 
 			impact_metric_ids.append(get_attack_impact_metrics_ray.remote(emission_path))
 
+			files_processed += 1
+
+			print('Files processed: '+str(files_processed)+'/'+str(num_files))
+
 	impact_metric_list = ray.get(impact_metric_ids)
-
-
-
 
 	impact_dict = {}
 
@@ -120,14 +129,49 @@ def get_attack_impact_dict_all_ray(emission_repo):
 	key =  str(TAD) + '_'+str(ADR)
 
 	if(key in impact_dict.keys()):
+		impact_dict[key].append(impact_metric_list)
 
 	else:
 		impact_dict[key] = []
+		impact_dict[key].append(impact_metric_list)
+
+	return impact_dict, impact_metric_list
+
+
+def write_impact_metric_list(impact_metric_list,file_name='all_impacts.csv'):
+	with open(file_name, 'w', newline='') as csvfile:
+	    file_writer = csv.writer(csvfile, delimiter=',')
+
+	    num_samples = len(impact_metric_list)
+
+	    for i in range(num_samples):
+	    	row = []
+	    	row.append(impact_metric_list[i][0])
+	    	for j in range(len(impact_metric_list[i][1])):
+	    		row.append(impact_metric_list[i][1][j])
+
+
+	    	file_writer.writerow(row)
+
+	print('Finished writing.')
+
 
 
 if __name__ == '__main__':
-	emission_repo = '/Volumes/My Passport for Mac/double_lane_ring_road_attack_parameter_sweep'
+	emission_repo_double_lane = '/Volumes/My Passport for Mac/double_lane_ring_road_attack_parameter_sweep'
 
+	ray.init()
+
+	double_lane_impact_results_dict = get_attack_impact_dict_all_ray(emission_repo)
+
+
+	emission_repo_single_lane = '/Volumes/My Passport for Mac/single_lane_ring_road_attack_parameter_sweep'
+
+	impact_dict_single_lane,impact_metrics_list_single_lane = get_attack_impact_dict_all_ray(emission_repo_single_lane)
+
+	file_name_single_lane = os.path.join(emission_repo_single_lane,'all_impact_metrics_single_lane.csv')
+
+	write_impact_metric_list(impact_metrics_list_single_lane,file_name_single_lane)
 
 
 

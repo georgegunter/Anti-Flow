@@ -46,7 +46,6 @@ def get_sim_timeseries(csv_path,warmup_period=0.0):
 		print('Data loaded.')
 	return sim_dict
 
-
 def get_sim_timeseries_all_data(csv_path,warmup_period=0.0):
 	row_num = 1
 	curr_veh_id = 'id'
@@ -81,8 +80,6 @@ def get_sim_timeseries_all_data(csv_path,warmup_period=0.0):
 		sim_dict[curr_veh_id] = curr_veh_data
 		print('Data loaded.')
 	return sim_dict
-
-
 
 def get_sim_data_dict_ring(csv_path,warmup_period=50.0):
 	row_num = 1
@@ -120,7 +117,28 @@ def get_sim_data_dict_ring(csv_path,warmup_period=50.0):
 		print('Data loaded.')
 	return sim_dict	
 
-def get_ring_positions(sim_data_dict,ring_length):
+def get_ring_positions(sim_data_dict,csv_path,ring_length):
+
+	rel_pos_index = 0
+	edge_index = 0
+	distance_index = 0
+	with open(csv_path, newline='') as csvfile:
+		csvreader = csv.reader(csvfile, delimiter=',')
+		row1 = next(csvreader)
+
+
+	num_data_entries = len(row1)
+	i=0
+	while(i < num_data_entries):
+		entry = row1[i]
+		if(entry == 'relative_position'):rel_pos_index = i
+		elif(entry == 'edge_id'):edge_index = i
+		elif(entry == 'distance'):distance_index = i
+		i += 1
+
+
+
+
 	veh_ids = list(sim_data_dict.keys())
 	ring_positions = dict.fromkeys(veh_ids)
 
@@ -129,10 +147,10 @@ def get_ring_positions(sim_data_dict,ring_length):
 	for veh_id in veh_ids:
 		temp_veh_data = np.array(sim_data_dict[veh_id])
 
-		init_edge = temp_veh_data[0,-9]
-		init_rel_position = temp_veh_data[0,-6].astype(float)
+		init_edge = temp_veh_data[0,edge_index]
+		init_rel_position = temp_veh_data[0,rel_pos_index].astype(float)
 
-		distances = temp_veh_data[:,-7].astype(float)
+		distances = temp_veh_data[:,distance_index].astype(float)
 
 		distances = distances - distances[0]
 
@@ -191,12 +209,12 @@ def stack_data_for_spacetime(sim_data_dict,
 	else:
 		return np.array(times_list),np.array(pos_list),np.array(speed_list)
 
-def make_ring_spacetime_fig(sim_data_dict=None,csv_path=None,ring_length=300):
+def make_ring_spacetime_fig(sim_data_dict,csv_path,ring_length=300):
 	if(sim_data_dict is None):
 		sim_data_dict = get_sim_data_dict_ring(csv_path)
 
 	veh_ids = list(sim_data_dict.keys())
-	ring_positions = get_ring_positions(sim_data_dict,ring_length)
+	ring_positions = get_ring_positions(sim_data_dict,csv_path,ring_length)
 	times,positions,speeds = stack_data_for_spacetime(sim_data_dict,ring_positions)
 
 	positions_mod_ring_length = np.mod(positions,ring_length)
@@ -217,16 +235,13 @@ def make_ring_spacetime_fig_multilane(sim_data_dict=None,csv_path=None,ring_leng
 
 	return None
 
-def make_ring_spacetime_fig_with_losses(losses_smoothed,
-	sim_data_dict=None,
-	csv_path=None,
-	ring_length=300):
+def make_ring_spacetime_fig_with_losses(sim_data_dict,csv_path,losses_smoothed,ring_length=300):
 
 	if(sim_data_dict is None):
 		sim_data_dict = get_sim_data_dict_ring(csv_path)
 
 	veh_ids = list(sim_data_dict.keys())
-	ring_positions = get_ring_positions(sim_data_dict,ring_length)
+	ring_positions = get_ring_positions(sim_data_dict,csv_path,ring_length)
 	
 	# Need to get losses:
 	times,positions,speeds,losses = stack_data_for_spacetime(sim_data_dict,ring_positions,want_losses=True,losses_dict=losses_smoothed)

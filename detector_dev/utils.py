@@ -641,7 +641,7 @@ def k_means_classify(max_losses,cluster_diff=0.1):
     if(np.min(positive_labels)-cluster_diff > np.max(negative_labels)):
         return labels,cluster_centroids
     else:
-        return np.zeros_like(labels)
+        return np.zeros_like(labels),cluster_centroids
 
 
 def threshold_classification(max_losses,threshold):

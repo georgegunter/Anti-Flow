@@ -222,6 +222,70 @@ def make_mal_driver_list(Total_Attack_Duration=3.0,attack_decel_rate = -.8):
 
     return driver_controller_list_with_attack
 
+def make_benign_driver_list(Total_Attack_Duration=3.0,attack_decel_rate = -.8):
+
+    driver_controller_list = []
+
+    #cfm parameters:
+    a_mean=0.666
+    b_mean=21.6
+    s0_mean=2.21
+    s1_mean=2.82
+    Vm_mean=8.94
+
+    #lane-change parameters:
+
+    left_delta_mean = 0.5
+    right_delta_mean = 0.3
+    left_beta_mean=1.5
+    right_beta_mean=1.5
+    switching_threshold_mean = 5.0
+
+    num_human_drivers = 70
+
+    for i in range(num_human_drivers):
+        a = a_mean + np.random.normal(0,0.1)
+        b = b_mean + np.random.normal(0,0.5)
+        s0 = s0_mean + np.random.normal(0,0.2)
+        s1 = s1_mean + np.random.normal(0,0.2)
+        Vm = Vm_mean + np.random.normal(0,0.5)
+        
+        left_delta = left_delta_mean + np.random.normal(0,0.1)
+        right_delta = right_delta_mean + np.random.normal(0,0.1)
+        left_beta = left_beta_mean + np.random.normal(0,0.2)
+        right_beta = right_beta_mean + np.random.normal(0,0.2)
+        switching_threshold = switching_threshold_mean + np.random.normal(0,0.3)
+
+        label = 'bando_ftl_ovm_a'+str(np.round(a,2))+'_b'+str(np.round(b,2))+'_s0'+str(np.round(s0,2))+'_s1'+str(np.round(s1,2))+'_Vm'+str(np.round(Vm,2))
+        cfm_controller = (Bando_OVM_FTL,{'a':a,'b':b,'s0':s0,'s1':s1,'Vm':Vm,'noise':0.1})
+        
+        lc_controller = (AILaneChangeController,{'left_delta':left_delta,
+                                                 'right_delta':right_delta,
+                                                 'left_beta':left_beta,
+                                                 'right_beta':right_beta,
+                                                 'switching_threshold':switching_threshold})
+        
+        driver_controller_list.append([label,cfm_controller,lc_controller,1])
+
+    k_1_mean = 1.5
+    k_2_mean = 0.2
+    h_mean = 1.8
+    V_m_mean = 15.0
+    d_min_mean = 10.0
+
+    for i in range(10):
+        k_1 = k_1_mean + np.random.normal(0,0.2)
+        k_2 = k_2_mean + np.random.normal(0,0.2)
+        h = h_mean + np.random.normal(0,0.2)
+        V_m = V_m_mean + np.random.normal(0,1.0)
+        d_min = d_min_mean
+
+        label = 'ACC_k_1'+str(np.round(k_1,2))+'_k_2'+str(np.round(k_2,2))+'_h'+str(np.round(h,2))+'_V_m'+str(np.round(V_m,2))+'d_m'+str(np.round(d_min,2))
+        cfm_controller = (ACC_Benign,{'k_1':k_1,'k_2':k_2,'h':h,'V_m':V_m,'d_min':d_min})
+        driver_controller_list.append([label,cfm_controller,1])    
+
+    return driver_controller_list
+
 def run_sim_with_attack(Total_Attack_Duration,attack_decel_rate,emission_path):
     
     driver_controller_list_with_attack = make_mal_driver_list(Total_Attack_Duration,attack_decel_rate)

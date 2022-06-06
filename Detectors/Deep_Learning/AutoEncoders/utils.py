@@ -239,11 +239,17 @@ def train_model(model,train_X,model_file_name,n_epoch=150,seq_len=100):
     else:
         train_ls, train_tot = eval_data(model=model, dataloader=trainloader)
         best_loss = 1.0 * train_ls/train_tot
+        print('Best loss '+str(best_loss))
+    
+    time_tracker = time.time()
+    print('Beginning training.')
 
     for e in range(n_epoch):
         l = train_epoch(model=model, optimizer=optimizer, dataloader=trainloader)
         train_ls, train_tot = eval_data(model=model, dataloader=trainloader)
         avg_loss = 1.0 * train_ls / train_tot
+        print('Number epochs: '+str(e)+' epoch step time: '+str(time.time()-time_tracker))
+        time_tracker = time.time()
         if e % 5 == 0:
             print("Epoch %d, total loss %f, total predictions %d, avg loss %f" % (e, train_ls, train_tot, avg_loss),
                   datetime.datetime.now())
@@ -254,7 +260,7 @@ def train_model(model,train_X,model_file_name,n_epoch=150,seq_len=100):
     print('Finished training.')
     return model
 
-def make_train_X(timeseries_list,num_samples_per_veh = 100,seq_len = 100):
+def make_train_X(timeseries_list,num_samples_per_veh = 10,seq_len = 100):
     '''Should accept a list of lists of numpy arrays which are all synced timeseries'''
     training_data_list = []
     for sample in timeseries_list:

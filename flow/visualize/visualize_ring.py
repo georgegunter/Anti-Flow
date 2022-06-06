@@ -4,7 +4,7 @@ import sys
 import numpy as np
 import time
 from copy import deepcopy
-
+import time
 import csv
 
 from Detectors.Deep_Learning.AutoEncoders.utils import get_loss_filter_indiv as loss_smooth
@@ -16,12 +16,27 @@ def get_sim_timeseries(csv_path,warmup_period=0.0):
 	sim_dict = {}
 	curr_veh_data = []
 
+	begin_time = time.time()
+
 	with open(csv_path, newline='') as csvfile:
 		csvreader = csv.reader(csvfile, delimiter=',')
+		id_index = 0
+		time_index = 0
+		speed_index = 0
+		headway_index = 0
+		relvel_index = 0
+		row1 = next(csvreader)
+		num_entries = len(row1)
+		while(row1[id_index]!='id' and id_index<num_entries):id_index +=1
+		while(row1[time_index]!='time' and time_index<num_entries):time_index +=1
+		while(row1[speed_index]!='speed' and speed_index<num_entries):speed_index +=1
+		while(row1[headway_index]!='headway' and headway_index<num_entries):headway_index +=1
+		while(row1[relvel_index]!='leader_rel_speed' and relvel_index<num_entries):relvel_index +=1
+
 		for row in csvreader:
 			if(row_num > 1):
 				# Don't read header
-				if(curr_veh_id != row[1]):
+				if(curr_veh_id != row[id_index]):
 					#Add in new data to the dictionary:
 					
 					#Store old data:
@@ -29,21 +44,24 @@ def get_sim_timeseries(csv_path,warmup_period=0.0):
 						sim_dict[curr_veh_id] = np.array(curr_veh_data).astype(float)
 					#Rest where data is being stashed:
 					curr_veh_data = []
-					curr_veh_id = row[1] # Set new veh id
+					curr_veh_id = row[id_index] # Set new veh id
 					#Allocate space for storing:
-					sim_dict[curr_veh_id] = []
+					# sim_dict[curr_veh_id] = []
 
-				curr_veh_id = row[1]
-				time = float(row[0])
-				if(time > warmup_period):
+				curr_veh_id = row[id_index]
+				sim_time = float(row[time_index])
+				if(sim_time > warmup_period):
 					# data = [time,speed,headway,leader_rel_speed]
-					data = [row[0],row[4],row[5],row[8]]
+					data = [row[time_index],row[speed_index],row[headway_index],row[relvel_index]]
 					curr_veh_data.append(data)
 			row_num += 1
 
 		#Add the very last vehicle's information:
 		sim_dict[curr_veh_id] = np.array(curr_veh_data).astype(float)
-		print('Data loaded.')
+		end_time = time.time()
+		print('Data loaded, total time: '+str(end_time-begin_time))
+		
+
 	return sim_dict
 
 def get_sim_timeseries_all_data(csv_path,warmup_period=0.0):

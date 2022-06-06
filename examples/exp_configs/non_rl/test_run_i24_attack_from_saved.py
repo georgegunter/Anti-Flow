@@ -11,10 +11,7 @@ from flow.controllers.lane_change_controllers import StaticLaneChanger
 from flow.controllers.routing_controllers import i24_adversarial_router
 from flow.controllers.routing_controllers import I24Router
 
-from Adversaries.controllers.car_following_adversarial import FollowerStopper_Overreact
-from Adversaries.controllers.car_following_adversarial import ACC_Benign
-from Adversaries.controllers.car_following_adversarial import ACC_Switched_Controller_Attacked
-
+from Adversaries.controllers.car_following_adversarial import ACC_Benign,ACC_Switched_Controller_Attacked,ACC_Switched_Controller_Attacked_Single
 
 # from flow.controllers.lane_change_controllers import AILaneChangeController
 # from flow.controllers.lane_change_controllers import I24_routing_LC_controller
@@ -43,20 +40,27 @@ from flow.core.experiment import Experiment
 
 import time
 
-def get_flow_params(acc_penetration,
-	inflow_level,
-	emission_path,
-	want_render=False):
 
-	SIM_LENGTH = 100 #simulation length in seconds
+def get_flow_params_with_attack(attack_duration,
+	attack_magnitude,
+	acc_penetration,
+	inflow,
+	emission_path,
+	attack_penetration,
+	want_render=False,
+	display_attack_info=True,
+	ACC_comp_params=None,
+	ACC_benign_params=None):
+
+	SIM_LENGTH = 2400 #simulation length in seconds
 
 	sim_step = .1 #Simulation step size
 
 	horizon = int(np.floor(SIM_LENGTH/sim_step)) #Number of simulation steps
 
-	# WARMUP_STEPS = 4000 #Attack vehicles don't attack before this # of steps
+	WARMUP_STEPS = int(1200/sim_step) #Attack vehicles don't attack before this # of steps
 
-	BASELINE_INFLOW_PER_LANE = inflow_level #Per lane flow rate in veh/hr
+	BASELINE_INFLOW_PER_LANE = inflow #Per lane flow rate in veh/hr
 
 	inflow_speed = 25.5
 
@@ -70,6 +74,10 @@ def get_flow_params(acc_penetration,
 
 	ACC_INFLOW = (ACC_PENETRATION_RATE)*BASELINE_INFLOW_PER_LANE
 
+	ACC_ATTACK_INFLOW = (attack_penetration)*ACC_INFLOW
+
+	ACC_BENIGN_INFLOW = (1-attack_penetration)*ACC_INFLOW
+
 	##################################
 	#ATTACK VEHICLE PARAMETERS:
 	##################################
@@ -78,26 +86,53 @@ def get_flow_params(acc_penetration,
 
 	inflow = InFlows()
 
+	attack_magnitude = -np.abs(attack_magnitude)
+
+	attack_duration = attack_duration
+	attack_magnitude = attack_magnitude
+
+	if(ACC_comp_params is not None):
+		# For if want to execute 'platoon attack' by changing ACC params:
+
+		k_1 = ACC_comp_params[0]
+		k_2 = ACC_comp_params[1]
+		h = ACC_comp_params[2]
+		d_min = ACC_comp_params[3]
+
+		adversary_accel_controller = (ACC_Switched_Controller_Attacked,{
+			'k_1':k_1,
+			'k_2':k_2,
+			'h':h,
+			'd_min':d_min,
+			'warmup_steps':WARMUP_STEPS,
+			'Total_Attack_Duration':attack_magnitude,
+			'attack_decel_rate':attack_magnitude,
+			'display_attack_info':display_attack_info})
+	else:
+		adversary_accel_controller = (ACC_Switched_Controller_Attacked,{
+			'warmup_steps':WARMUP_STEPS,
+			'Total_Attack_Duration':attack_duration,
+			'attack_decel_rate':attack_magnitude,
+			'display_attack_info':display_attack_info})
+
 	adversarial_router = (i24_adversarial_router,{})
 
 	#Should never attack, so just a regular ACC:
 
-	# if(ACC_benign_params is not None):
-	# 	k_1 = ACC_benign_params[0]
-	# 	k_2 = ACC_benign_params[1]
-	# 	h = ACC_benign_params[2]
-	# 	d_min = ACC_benign_params[3]
+	if(ACC_benign_params is not None):
+		k_1 = ACC_benign_params[0]
+		k_2 = ACC_benign_params[1]
+		h = ACC_benign_params[2]
+		d_min = ACC_benign_params[3]
 
-	# 	benign_ACC_controller = (ACC_Benign,{
-	# 		'k_1':k_1,
-	# 		'k_2':k_2,
-	# 		'h':h,
-	# 		'd_min':d_min})
+		benign_ACC_controller = (ACC_Benign,{
+			'k_1':k_1,
+			'k_2':k_2,
+			'h':h,
+			'd_min':d_min})
 
-	# else:
-	# 	benign_ACC_controller = (ACC_Benign,{})
-
-	benign_ACC_controller = (ACC_Benign,{})
+	else:
+		benign_ACC_controller = (ACC_Benign,{})
 
 	##################################
 	#DRIVER TYPES AND INFLOWS:
@@ -106,6 +141,21 @@ def get_flow_params(acc_penetration,
 	lane_list = ['1','2','3','4']
 
 	# Attack ACC params and inflows:
+	vehicles.add(
+		veh_id="attacker_ACC",
+		num_vehicles=0,
+		color="red",
+		lane_change_params=SumoLaneChangeParams(
+			lane_change_mode=0,
+		),
+		# this is only right of way on
+		car_following_params=SumoCarFollowingParams(
+			speed_mode=0  # right of way at intersections + obey limits on deceleration
+		),
+		acceleration_controller=adversary_accel_controller,
+		lane_change_controller=(StaticLaneChanger,{}),
+		routing_controller=adversarial_router,
+	)
 
 	vehicles.add(
 		veh_id="benign_ACC",
@@ -123,13 +173,23 @@ def get_flow_params(acc_penetration,
 		routing_controller=adversarial_router, #This breaks everything
 	)
 
+
 	for i,lane in enumerate(lane_list):
-		inflow.add(
-			veh_type="benign_ACC",
-			edge=highway_start_edge,
-			vehs_per_hour=ACC_INFLOW,
-			depart_lane=lane,
-			depart_speed=inflow_speed)
+		if(ACC_ATTACK_INFLOW > 0):
+			inflow.add(
+				veh_type="attacker_ACC",
+				edge=highway_start_edge,
+				vehs_per_hour=ACC_ATTACK_INFLOW ,
+				depart_lane=lane,
+				depart_speed=inflow_speed)
+
+		if(ACC_BENIGN_INFLOW > 0):
+			inflow.add(
+				veh_type="benign_ACC",
+				edge=highway_start_edge,
+				vehs_per_hour=ACC_BENIGN_INFLOW ,
+				depart_lane=lane,
+				depart_speed=inflow_speed)
 
 	#handles when vehicles wait too long to try and merge and get stuck on merge:
 	human_routing_controller = (I24Router,{'position_to_switch_routes':75})
@@ -186,37 +246,25 @@ def get_flow_params(acc_penetration,
 	##################################
 
 
+	# initial_load_state = '/Users/vanderbilt/Desktop/Research_2022/Anti-Flow/examples/exp_configs/non_rl/i24_initial_state_with_inflow_2400.xml'
+
+	sim_params=SumoParams(
+			sim_step=sim_step,
+			render=want_render,
+			# load_state=initial_load_state,
+			color_by_speed=False,
+			use_ballistic=True,
+			emission_path=emission_path,
+			print_warnings=False,
+			restart_instance=True
+		)
+
+
+
+
 	NET_TEMPLATE = os.path.join(
 			config.PROJECT_PATH,
 			"examples/exp_configs/templates/sumo/i24_subnetwork_fix_merges.net.xml")
-
-	# for saving the traffic state at a certain time:
-	# save_state_time = 30.0,
-	save_file_path = 'i24_initial_state_with_inflow_'+str(inflow_level)+'.xml'
-
-	sim_params = None
-
-	if(emission_path is not None):
-		sim_params = SumoParams(
-				sim_step=sim_step,
-				render=want_render,
-				save_state_time = 1119.0,
-				save_state_file = save_file_path,
-				color_by_speed=False,
-				use_ballistic=True,
-				emission_path=emission_path,
-				print_warnings=False,
-				restart_instance=True)
-	else:
-		sim_params = SumoParams(
-				sim_step=sim_step,
-				render=want_render,
-				save_state_time = 1119.0,
-				save_state_file = save_file_path,
-				color_by_speed=False,
-				use_ballistic=True,
-				print_warnings=False,
-				restart_instance=True)
 
 	flow_params = dict(
 		# name of the experiment
@@ -261,30 +309,40 @@ def get_flow_params(acc_penetration,
 	return flow_params
 
 
-if __name__ == '__main__':
-
-	inflow_level = 2400
-	acc_penetration = 0.2
-	emission_path = '/Volumes/My Passport for Mac/benign_initial_i24'
-	want_render = True
-
-	flow_params = get_flow_params(acc_penetration,inflow_level,emission_path,want_render)
+def run_sim(flow_params,emission_path):
 
 	exp = Experiment(flow_params)
 
+	[info_dict,csv_path] = exp.run(num_runs=1,convert_to_csv=True)
+
+	return os.path.join(emission_path,csv_path)
+
+if __name__ == '__main__':
+
+
+	attack_magnitude = -1.0
+	attack_duration = 10.0
+	attack_penetration = 0.1
+	acc_penetration = 0.2
+	# inflow = 2400
+	inflow = 1800
+
+	emission_path = '/Volumes/My Passport for Mac/'
+
+	
+	flow_params = get_flow_params_with_attack(attack_duration,
+		attack_magnitude,
+		acc_penetration,
+		inflow,
+		emission_path,
+		attack_penetration)
+
 	begin_sim_time = time.time()
 
-	exp.run(num_runs=1,convert_to_csv=True)
+	run_sim(flow_params,emission_path)
 
 	end_sim_time = time.time()
 
 	print('Total simulation time: '+str(end_sim_time-begin_sim_time))
-
-
-
-
-
-
-
 
 

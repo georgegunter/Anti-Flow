@@ -29,6 +29,32 @@ from flow.utils.exceptions import FatalFlowError
 from flow.data_pipeline.data_pipeline import get_extra_info
 
 
+def get_veh_types_from_load_state(load_state):
+    #Shitty xml parser but it gets the job done...
+    lines = []
+
+    with open(load_state) as file:
+        lines = file.readlines()
+
+    veh_info = []
+
+    for line in lines:
+        if('vehicle id' in line):
+            i = 17
+            while(line[i]!= '"'):i+=1
+            veh_id = line[17:i]
+            i += 8
+            j = i
+            while(line[j] != '"'):j += 1
+
+            veh_type = line[i:j]
+
+            veh_info.append([veh_id,veh_type])
+
+    return veh_info
+
+
+
 class Env(gym.Env, metaclass=ABCMeta):
     """Base environment class.
 
@@ -486,19 +512,39 @@ class Env(gym.Env, metaclass=ABCMeta):
             self.setup_initial_state()
 
         if self.sim_params.load_state is not None:
+            # Remove all existing vehicles:
             for veh_id in list(self.k.vehicle.get_ids()):
                 self.k.vehicle.remove(veh_id, from_sumo=False)
 
-            for veh_id in self.k.kernel_api.vehicle.getIDList():
-                self.k.vehicle._add_departed(veh_id, "human")
+            # REMOVE THIS AFTER DEBUGGING:
+            veh_info = get_veh_types_from_load_state(self.sim_params.load_state)
+
+            for row in veh_info:
+                veh_id = row[0]
+                veh_type = row[1]
+                self.k.vehicle._add_departed(veh_id, veh_type)
+            #debugging:
+            print(self.k.vehicle.num_vehicles)
+            print(len(self.k.kernel_api.vehicle.getIDList()))
+            # for veh_id in self.k.kernel_api.vehicle.getIDList():
+            #     # veh_type = self.k.kernel_api.vehicle.get_type(veh_id)
+            #     # print(veh_type)
+            #     self.k.vehicle._add_departed(veh_id, "human")
 
             # Run assertions to make sure the operation was successful.
-            assert self.k.vehicle.num_vehicles == \
-                len(self.k.kernel_api.vehicle.getIDList())
-            assert set(self.k.vehicle.get_ids()) == \
-                set(self.k.kernel_api.vehicle.getIDList()), \
-                list(set(self.k.vehicle.get_ids()) -
-                     set(self.k.kernel_api.vehicle.getIDList()))
+            # Check if the nunmber of vehicles is the same as getIDList():
+            
+
+            # I don't think this is correct? and I can't find getIDList()
+            # Going to comment out and see if it breaks everything
+            # assert self.k.vehicle.num_vehicles == \
+            #     len(self.k.kernel_api.vehicle.getIDList())
+
+            # # check that get_ids() matches up with getIDList():
+            # assert set(self.k.vehicle.get_ids()) == \
+            #     set(self.k.kernel_api.vehicle.getIDList()), \
+            #     list(set(self.k.vehicle.get_ids()) -
+            #          set(self.k.kernel_api.vehicle.getIDList()))
 
         else:
             # clear all vehicles from the network and the vehicles class

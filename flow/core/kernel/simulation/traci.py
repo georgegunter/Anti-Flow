@@ -116,6 +116,7 @@ class TraCISimulation(KernelSimulation):
 
                 # Add the speed, position, and lane data.
                 self.stored_data[veh_id][t].update({
+                    "type":kv.get_type(veh_id),
                     "speed": kv.get_speed(veh_id),
                     "lane_number": kv.get_lane(veh_id),
                     "edge_id": kv.get_edge(veh_id),
@@ -311,6 +312,7 @@ class TraCISimulation(KernelSimulation):
 
         # The name of all stored data-points (excluding id and time)
         stored_ids = [
+            "type",
             "x",
             "y",
             "speed",

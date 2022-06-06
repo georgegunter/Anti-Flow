@@ -9,6 +9,9 @@ from flow.envs import LaneChangeAccelEnv
 
 import os
 
+from flow.core.experiment import Experiment
+
+
 vehicles = VehicleParams()
 vehicles.add(
     veh_id="human",
@@ -43,20 +46,21 @@ inflow.add(
     departLane="free",
     departSpeed=20)
 
-save_file_path = os.path.join(os.getcwd(),'save_state/initial_state.xml')
+# save_file_path = os.path.join(os.getcwd(),'save_state/initial_state.xml')
+ 
+save_file_path = '/Users/vanderbilt/Desktop/Research_2022/Anti-Flow/examples/save_state/highway_initial_state.xml'
 
-load_path = os.path.join(os.getcwd(),'save_state/initial_state.xml')
-print(load_path)
+# load_path = os.path.join(os.getcwd(),'save_state/initial_state.xml')
+# print(load_path)
 
 SumoParams_to_run = SumoParams(
         render=True,
         # lateral_resolution=1.0,
-        load_state=load_path,
-        # save_state_time = 30.0,
-        # save_state_file = save_file_path
+        # load_state=load_path,
+        save_state_time = 30.0,
+        save_state_file = save_file_path
 
     )
-
 
 flow_params = dict(
     # name of the experiment
@@ -98,3 +102,10 @@ flow_params = dict(
         shuffle=True,
     ),
 )
+
+exp = Experiment(flow_params)
+
+exp.run(num_runs=1)
+
+
+

@@ -88,7 +88,7 @@ class ACC_Switched_Controller_Attacked(BaseController):
                  h=1.2,
                  d_min=8.0,
                  SS_Threshold_min=60,
-                 SS_Threshold_range=20,
+                 SS_Threshold_range=40,
                  want_multiple_attacks=False,
                  Total_Attack_Duration = 3.0,
                  attack_decel_rate = -.8,
@@ -255,7 +255,8 @@ class ACC_Switched_Controller_Attacked(BaseController):
             self.normal_ACC_accel(env) #Sets vehicles acceleration in self.a
             # Check to see if need to initiate attack:
             self.numSteps_Steady_State += 1
-            self.Check_Start_Attack(env)
+            if(env.step_counter >= self.warmup_steps):
+                self.Check_Start_Attack(env)
             # Specificy that no attack is being executed:
             #Commenting out temporarily, since needs to be re-implemented:
             # env.k.vehicle.set_malicious(veh_id=self.veh_id,is_malicious=0)

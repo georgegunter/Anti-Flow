@@ -113,25 +113,10 @@ def process_file_for_losses_ray(emission_file_path,loss_emission_repo,model,warm
     return process_file_for_losses(emission_file_path,loss_emission_repo,model,warmup_period)
 
 
-@ray.remote
-def get_losses_complete_obs_ray(emission_path,model,warmup_period=600):
-    return get_losses_complete_obs(emission_path,model,warmup_period
-
-
-@ray.remote
-def get_max_losses_complete_obs_ray(emission_path,model):
-    smoothed_losses = get_losses_complete_obs(emission_path,model)
-    max_losses = []
-    for veh_id in smoothed_losses:
-        max_losses.append([veh_id,np.max(smoothed_losses[veh_id])])
-
-    return [get_attack_params(emission_path),max_losses]
-
-
 if __name__ == '__main__':
     model = get_cnn_lstm_ae_model(n_features=4)
     # Load in a trained model:
-    MODEL_PATH = '/models/cnn_lstm_ae_i24_detector_complete_obs_ver2.pt'
+    MODEL_PATH = os.path.join(os.getcwd(),'models/cnn_lstm_ae_i24_detector_complete_obs_ver2.pt')
     model.load_state_dict(torch.load(MODEL_PATH,map_location=torch.device('cpu')))
 
     loss_emission_repo = '/Volumes/Backup/George_Research/i24_random_sample/part 1/losses/'
@@ -147,12 +132,22 @@ if __name__ == '__main__':
 
     loss_result_ids = []
 
+    warmup_period = 1200
+    print('Loading losses. ')
+    ray.init()
     for file_name in all_emission_files:
         emission_file_path = os.path.join(emission_file_repo,file_name)
-        process_file_for_losses_ray.remote(emission_file_path,
+
+        loss_result_ids.append(process_file_for_losses_ray.remote(emission_file_path,
             loss_emission_repo,
             model,
-            warmup_period=1200)
+            warmup_period=warmup_period))
+
+    file_results = ray.get(loss_result_ids)
+
+    print('Finished finding losses.')
+
+
 
 
 

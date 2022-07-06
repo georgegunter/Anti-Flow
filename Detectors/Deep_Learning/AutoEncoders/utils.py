@@ -7,6 +7,13 @@ import matplotlib.pyplot as plt
 import os
 import torch
 
+import datetime
+
+import time
+
+from Detectors.Deep_Learning.AutoEncoders.cnn_lstm_ae import CNNRecurrentAutoencoder
+
+
 #%%
 class SeqDataset(torch.utils.data.Dataset):
     def __init__(self, X):
@@ -20,7 +27,7 @@ class SeqDataset(torch.utils.data.Dataset):
         ys = np.expand_dims(self.X[idx], axis=1)
         return Xs, ys
 
-def train_epoch(model, optimizer, dataloader):
+def train_epoch_original(model, optimizer, dataloader):
     model.train()
 
     cum_loss = 0.0
@@ -47,6 +54,34 @@ def train_epoch(model, optimizer, dataloader):
         tot_num = tot_num + B
 
     return cum_loss / tot_num
+
+def train_epoch(model, optimizer, dataloader):
+    model.train()
+
+    cum_loss = 0.0
+    tot_num = 0.0
+    for X, y in dataloader:
+        optimizer.zero_grad()
+        B = X.shape[0]
+        pred = model(X.float())
+
+        if(pred.shape[2] != 1):
+            flat_pred = flatten_preds(pred)
+            flat_X = X.reshape(flat_pred.shape)
+            loss = model.loss(flat_pred,flat_X)
+        else:
+            loss = model.loss(pred, X.reshape(pred.shape))
+
+        loss = torch.sum(loss)
+        loss.backward()
+        optimizer.step()
+
+        # cum_loss += loss.item()
+        cum_loss += loss.detach().cpu().numpy()
+        # pred_c = pred.max(1)[1].cpu()
+        tot_num = tot_num + B
+
+    return cum_loss / tot_num  
 
 def eval_data(model, dataloader):
     model.eval()
@@ -145,7 +180,7 @@ def sliding_window_mult_feat(model,timeseries_list,n_features=4,seq_len=100):
     return [reconstructions,losses]
 
 def get_loss_filter_indiv(time_samples,losses,loss_window_length=100):
-    
+
     veh_losses_filtered = np.zeros_like(time_samples)
     loss_counts = np.zeros_like(time_samples)
 
@@ -171,6 +206,107 @@ def get_losses(model, dataloader):
         losses += list(loss.detach().cpu().numpy().reshape(-1))
 
     return losses
+
+def train_model(model,train_X,model_file_name,n_epoch=150,seq_len=100):
+    embedding_dim = 32
+    cnn_channels = 8
+    kernel_size = 16
+    stride = 1
+    batch_size = 16
+    device = 'cpu'
+
+    save_path=os.path.join(os.getcwd(),'models/')
+
+    trainset = SeqDataset(train_X)
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=False)
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-5)
+
+    np.savez(f'{save_path}cnn_lstm_ae_{model_file_name}.npz', seq_len=seq_len, embedding_dim=embedding_dim,
+             cnn_channels=cnn_channels, kernel_size=kernel_size, stride=stride)
+
+    SAVE_PATH = f'{save_path}cnn_lstm_ae_{model_file_name}.pt'
+
+    do_load = True
+
+    if do_load and os.path.exists(SAVE_PATH):
+        model.load_state_dict(torch.load(SAVE_PATH))
+        print('Loaded existing model: '+SAVE_PATH)
+    else:
+        print('Creating new model.')
+
+    if not do_load:
+        best_loss = 999999
+    else:
+        train_ls, train_tot = eval_data(model=model, dataloader=trainloader)
+        best_loss = 1.0 * train_ls/train_tot
+        print('Best loss '+str(best_loss))
+    
+    time_tracker = time.time()
+    print('Beginning training.')
+
+    for e in range(n_epoch):
+        l = train_epoch(model=model, optimizer=optimizer, dataloader=trainloader)
+        train_ls, train_tot = eval_data(model=model, dataloader=trainloader)
+        avg_loss = 1.0 * train_ls / train_tot
+        print('Number epochs: '+str(e)+' epoch step time: '+str(time.time()-time_tracker))
+        time_tracker = time.time()
+        if e % 5 == 0:
+            print("Epoch %d, total loss %f, total predictions %d, avg loss %f" % (e, train_ls, train_tot, avg_loss),
+                  datetime.datetime.now())
+        if avg_loss < best_loss:
+            best_loss = avg_loss
+            torch.save(model.state_dict(), SAVE_PATH)
+            print("Saving model. Best loss: "+str(best_loss))
+    print('Finished training.')
+    return model
+
+def make_train_X(timeseries_list,num_samples_per_veh = 10,seq_len = 100):
+    '''Should accept a list of lists of numpy arrays which are all synced timeseries'''
+    training_data_list = []
+    for sample in timeseries_list:
+        sample_length = len(sample[0])
+        
+        num_features = len(sample)
+        
+        sample_start_points = np.random.randint(sample_length-seq_len,size=num_samples_per_veh)
+        for i in range(num_samples_per_veh):
+            start = sample_start_points[i]
+            end = start+seq_len
+            
+            training_data_sample = np.zeros([num_features*seq_len,1])
+            
+            for j in range(num_features):
+                #j iterates through the different features:
+                timeseries_measurement = sample[j][start:end]
+                training_data_sample[j*seq_len:(j+1)*seq_len] = timeseries_measurement.reshape(seq_len,1)
+            
+            training_data_list.append(training_data_sample)
+        
+    #Cast into a torch Tensor:
+    train_X = torch.Tensor(np.array(training_data_list))
+    
+    return train_X
+
+def get_cnn_lstm_ae_model(n_features=1,seq_len=100):
+    #Network specific hyper-params:
+    embedding_dim = 32
+    cnn_channels = 8
+    kernel_size = 16
+    stride = 1
+    batch_size = 16
+    device = 'cpu' #Change to cuda if appropriate
+    n_features=n_features #Number of features, in the case only 1: speed
+    seq_len = seq_len #How many samples from the time-series we look at per time
+
+    #initialize the CNN LSTM AutoEncoder:
+    model = CNNRecurrentAutoencoder(seq_len,
+                                    n_features,
+                                    embedding_dim,
+                                    cnn_channels, 
+                                    kernel_size, 
+                                    stride, 
+                                    device)
+    return model
 
 
 # def plot_seqs(model, dataloader):

@@ -168,6 +168,9 @@ class Experiment:
         if self.env.sim_params.emission_path is not None:
             ensure_dir(self.env.sim_params.emission_path)
 
+
+        csv_path = None
+
         # used to store
         info_dict = {
             "velocities": [],
@@ -369,4 +372,9 @@ class Experiment:
             )
             os.remove(trajectory_table_path)
 
-        return info_dict
+
+        if(convert_to_csv):
+            csv_path = emission_files[0]
+            return [info_dict,emission_files[0]]
+        else:
+            return info_dict

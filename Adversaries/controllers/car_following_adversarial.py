@@ -330,10 +330,10 @@ class ACC_Switched_Controller_Attacked_Single(BaseController):
         s = s - L
         u_ACC = self.accel_func(v, v_l, s) 
         # Select the minimum of the two, so that collisions are avoided
-        if(self.attack_decel_rate<u_ACC):
-            env.k.vehicle.set_malicious(veh_id=self.veh_id,is_malicious=1)
-        else:
-            env.k.vehicle.set_malicious(veh_id=self.veh_id,is_malicious=0)
+        # if(self.attack_decel_rate<u_ACC):
+        #     env.k.vehicle.set_malicious(veh_id=self.veh_id,is_malicious=1)
+        # else:
+        #     env.k.vehicle.set_malicious(veh_id=self.veh_id,is_malicious=0)
 
         commanded_accel = np.min([self.attack_decel_rate,u_ACC])
 
@@ -420,7 +420,7 @@ class ACC_Switched_Controller_Attacked_Single(BaseController):
             #Normal acceleration:
             self.normal_ACC_accel(env) 
             # Specificy that no attack is being executed:
-            env.k.vehicle.set_malicious(veh_id=self.veh_id,is_malicious=0)
+            # env.k.vehicle.set_malicious(veh_id=self.veh_id,is_malicious=0)
 
         return self.a #return the acceleration that is set above.
 

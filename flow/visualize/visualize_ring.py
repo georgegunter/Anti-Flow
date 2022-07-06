@@ -182,10 +182,26 @@ def get_sim_data_dict_ring(csv_path,warmup_period=50.0):
 
 	with open(csv_path, newline='') as csvfile:
 		csvreader = csv.reader(csvfile, delimiter=',')
+		id_index = 0
+		time_index = 0
+		speed_index = 0
+		headway_index = 0
+		relvel_index = 0
+		edge_index = 0
+
+		row1 = next(csvreader)
+		num_entries = len(row1)
+		while(row1[id_index]!='id' and id_index<num_entries):id_index +=1
+		while(row1[edge_index]!='edge_id' and edge_index<num_entries):edge_index +=1
+		while(row1[time_index]!='time' and time_index<num_entries):time_index +=1
+		while(row1[speed_index]!='speed' and speed_index<num_entries):speed_index +=1
+		while(row1[headway_index]!='headway' and headway_index<num_entries):headway_index +=1
+		while(row1[relvel_index]!='leader_rel_speed' and relvel_index<num_entries):relvel_index +=1
+
 		for row in csvreader:
 			if(row_num > 1):
 				# Don't read header
-				if(curr_veh_id != row[1]):
+				if(curr_veh_id != row[id_index]):
 					#Add in new data to the dictionary:
 					
 					#Store old data:
@@ -193,12 +209,12 @@ def get_sim_data_dict_ring(csv_path,warmup_period=50.0):
 						sim_dict[curr_veh_id] = curr_veh_data
 					#Rest where data is being stashed:
 					curr_veh_data = []
-					curr_veh_id = row[1] # Set new veh id
+					curr_veh_id = row[id_index] # Set new veh id
 					#Allocate space for storing:
 					sim_dict[curr_veh_id] = []
 
-				curr_veh_id = row[1]
-				time = float(row[0])
+				curr_veh_id = row[id_index]
+				time = float(row[time_index])
 				if(time > warmup_period):
 					curr_veh_data.append(row)
 				# sys.stdout.write('\r'+'Veh id: '+curr_veh_id+ ' row: ' +str(row_num)+'\r')
@@ -266,6 +282,7 @@ def get_ring_positions(sim_data_dict,csv_path,ring_length):
 	return ring_positions
 
 def stack_data_for_spacetime(sim_data_dict,
+	csv_path,
 	ring_positions,
 	want_losses=False,
 	losses_dict=None):
@@ -276,13 +293,29 @@ def stack_data_for_spacetime(sim_data_dict,
 	pos_list = []
 	speed_list = []
 
+	# Find which column times and speeds are stored (this can change):
+	speed_index = 0
+	time_index = 0
+	with open(csv_path, newline='') as csvfile:
+		csvreader = csv.reader(csvfile, delimiter=',')
+		row1 = next(csvreader)
+	num_data_entries = len(row1)
+	i=0
+	while(i < num_data_entries):
+		entry = row1[i]
+		if(entry == 'time'):time_index = i
+		elif(entry == 'speed'):speed_index = i
+		i += 1
+
+
+
 	for veh_id in veh_ids:
 		#Look only at losses for those vehicles being measured:
 
 		temp_veh_data = np.array(sim_data_dict[veh_id]) 
-		time = temp_veh_data[:,0].astype(float) 
+		time = temp_veh_data[:,time_index].astype(float) 
 		ring_pos = ring_positions[veh_id]
-		speed = temp_veh_data[:,4].astype(float) 
+		speed = temp_veh_data[:,speed_index].astype(float) 
 
 		for i in range(len(time)): 
 			times_list.append(time[i]) 
@@ -302,13 +335,13 @@ def stack_data_for_spacetime(sim_data_dict,
 	else:
 		return np.array(times_list),np.array(pos_list),np.array(speed_list)
 
-def make_ring_spacetime_fig(sim_data_dict,csv_path,ring_length=300):
+def make_ring_spacetime_fig(sim_data_dict=None,csv_path=None,ring_length=300):
 	if(sim_data_dict is None):
 		sim_data_dict = get_sim_data_dict_ring(csv_path)
 
 	veh_ids = list(sim_data_dict.keys())
 	ring_positions = get_ring_positions(sim_data_dict,csv_path,ring_length)
-	times,positions,speeds = stack_data_for_spacetime(sim_data_dict,ring_positions)
+	times,positions,speeds = stack_data_for_spacetime(sim_data_dict,csv_path,ring_positions)
 
 	positions_mod_ring_length = np.mod(positions,ring_length)
 

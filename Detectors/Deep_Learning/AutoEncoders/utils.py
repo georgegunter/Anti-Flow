@@ -296,7 +296,7 @@ def get_cnn_lstm_ae_model(n_features=1,seq_len=100):
     batch_size = 16
     device = 'cpu' #Change to cuda if appropriate
     n_features=n_features #Number of features, in the case only 1: speed
-    seq_len = 100 #How many samples from the time-series we look at per time
+    seq_len = seq_len #How many samples from the time-series we look at per time
 
     #initialize the CNN LSTM AutoEncoder:
     model = CNNRecurrentAutoencoder(seq_len,

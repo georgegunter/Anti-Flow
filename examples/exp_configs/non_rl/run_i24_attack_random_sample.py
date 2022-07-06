@@ -313,7 +313,6 @@ def get_flow_params_with_attack(attack_duration,
 
 	return flow_params
 
-
 def run_sim(flow_params,emission_path):
 
 	exp = Experiment(flow_params)

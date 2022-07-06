@@ -9,7 +9,6 @@ import csv
 
 from Detectors.Deep_Learning.AutoEncoders.utils import get_loss_filter_indiv as loss_smooth
 
-
 def get_sim_timeseries(csv_path,warmup_period=0.0):
 	row_num = 1
 	curr_veh_id = 'id'
@@ -25,9 +24,12 @@ def get_sim_timeseries(csv_path,warmup_period=0.0):
 		speed_index = 0
 		headway_index = 0
 		relvel_index = 0
+		edge_index = 0
+
 		row1 = next(csvreader)
 		num_entries = len(row1)
 		while(row1[id_index]!='id' and id_index<num_entries):id_index +=1
+		while(row1[edge_index]!='edge_id' and edge_index<num_entries):edge_index +=1
 		while(row1[time_index]!='time' and time_index<num_entries):time_index +=1
 		while(row1[speed_index]!='speed' and speed_index<num_entries):speed_index +=1
 		while(row1[headway_index]!='headway' and headway_index<num_entries):headway_index +=1
@@ -50,7 +52,71 @@ def get_sim_timeseries(csv_path,warmup_period=0.0):
 
 				curr_veh_id = row[id_index]
 				sim_time = float(row[time_index])
+				edge = row[edge_index]
 				if(sim_time > warmup_period):
+					# data = [time,speed,headway,leader_rel_speed]
+					data = [row[time_index],row[speed_index],row[headway_index],row[relvel_index]]
+					curr_veh_data.append(data)
+			row_num += 1
+
+		#Add the very last vehicle's information:
+		sim_dict[curr_veh_id] = np.array(curr_veh_data).astype(float)
+		end_time = time.time()
+		print('Data loaded, total time: '+str(end_time-begin_time))
+	
+
+
+def get_sim_timeseries_i24(csv_path,warmup_period=0.0):
+	row_num = 1
+	curr_veh_id = 'id'
+	sim_dict = {}
+	curr_veh_data = []
+
+	begin_time = time.time()
+
+	with open(csv_path, newline='') as csvfile:
+		csvreader = csv.reader(csvfile, delimiter=',')
+		id_index = 0
+		time_index = 0
+		speed_index = 0
+		headway_index = 0
+		relvel_index = 0
+		edge_index = 0
+		pos_index = 0
+
+
+		edge_list = ['Eastbound_3',':202186118','Eastbound_4','Eastbound_5','Eastbound_6',':202186134','Eastbound_7']
+
+		row1 = next(csvreader)
+		num_entries = len(row1)
+		while(row1[id_index]!='id' and id_index<num_entries):id_index +=1
+		while(row1[edge_index]!='edge_id' and edge_index<num_entries):edge_index +=1
+		while(row1[time_index]!='time' and time_index<num_entries):time_index +=1
+		while(row1[speed_index]!='speed' and speed_index<num_entries):speed_index +=1
+		while(row1[headway_index]!='headway' and headway_index<num_entries):headway_index +=1
+		while(row1[relvel_index]!='leader_rel_speed' and relvel_index<num_entries):relvel_index +=1
+
+
+
+		for row in csvreader:
+			if(row_num > 1):
+				# Don't read header
+				if(curr_veh_id != row[id_index]):
+					#Add in new data to the dictionary:
+					
+					#Store old data:
+					if(len(curr_veh_data)>0):
+						sim_dict[curr_veh_id] = np.array(curr_veh_data).astype(float)
+					#Rest where data is being stashed:
+					curr_veh_data = []
+					curr_veh_id = row[id_index] # Set new veh id
+					#Allocate space for storing:
+					# sim_dict[curr_veh_id] = []
+
+				curr_veh_id = row[id_index]
+				sim_time = float(row[time_index])
+				edge = row[edge_index]
+				if(sim_time > warmup_period and edge in edge_list):
 					# data = [time,speed,headway,leader_rel_speed]
 					data = [row[time_index],row[speed_index],row[headway_index],row[relvel_index]]
 					curr_veh_data.append(data)
@@ -71,11 +137,20 @@ def get_sim_timeseries_all_data(csv_path,warmup_period=0.0):
 	curr_veh_data = []
 
 	with open(csv_path, newline='') as csvfile:
+		
 		csvreader = csv.reader(csvfile, delimiter=',')
+		id_index = 0
+		time_index = 0
+		row1 = next(csvreader)
+		while(row1[id_index]!='id' and id_index<num_entries):id_index +=1
+		while(row1[time_index]!='time' and time_index<num_entries):time_index +=1
+
+		row_num += 1
+
 		for row in csvreader:
 			if(row_num > 1):
 				# Don't read header
-				if(curr_veh_id != row[1]):
+				if(curr_veh_id != row[curr_veh_id]):
 					#Add in new data to the dictionary:
 					
 					#Store old data:
@@ -83,11 +158,11 @@ def get_sim_timeseries_all_data(csv_path,warmup_period=0.0):
 						sim_dict[curr_veh_id] = curr_veh_data
 					#Rest where data is being stashed:
 					curr_veh_data = []
-					curr_veh_id = row[1] # Set new veh id
+					curr_veh_id = row[curr_veh_id] # Set new veh id
 					#Allocate space for storing:
 					sim_dict[curr_veh_id] = []
 
-				curr_veh_id = row[1]
+				curr_veh_id = row[curr_veh_id]
 				time = float(row[0])
 				if(time > warmup_period):
 					# data = [time,speed,headway,leader_rel_speed]

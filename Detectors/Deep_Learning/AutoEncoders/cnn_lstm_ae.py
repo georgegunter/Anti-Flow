@@ -63,6 +63,7 @@ class CNNRecurrentAutoencoder(torch.nn.Module):
         self.device = device
         self.encoder = Encoder(seq_len, n_features, embedding_dim, cnn_channels, kernel_size, stride).to(self.device)
         self.decoder = Decoder(seq_len, embedding_dim, n_features).to(device)
+        self.seq_len = seq_len
 
     def forward(self, x):
         x = x.to(self.device)

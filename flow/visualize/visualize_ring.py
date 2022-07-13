@@ -1,6 +1,4 @@
 # import numpy as np
-import matplotlib
-matplotlib.use('TkAgg')
 import matplotlib.pyplot as pt
 import sys
 import numpy as np
@@ -65,7 +63,8 @@ def get_sim_timeseries(csv_path,warmup_period=0.0):
 		sim_dict[curr_veh_id] = np.array(curr_veh_data).astype(float)
 		end_time = time.time()
 		print('Data loaded, total time: '+str(end_time-begin_time))
-	
+        
+	return sim_dict
 
 
 def get_sim_timeseries_i24(csv_path,warmup_period=0.0):

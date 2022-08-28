@@ -1,5 +1,16 @@
 from sklearn.cluster import KMeans
 
+import matplotlib.pyplot as pt
+import sys
+import numpy as np
+import time
+from copy import deepcopy
+
+import csv
+
+from Detectors.Deep_Learning.AutoEncoders.utils import get_loss_filter_indiv as loss_smooth
+
+
 
 def k_means_cluster(max_losses,cluster_diff=0.1):
 
@@ -26,4 +37,25 @@ def k_means_cluster(max_losses,cluster_diff=0.1):
         return np.zeros_like(labels)
 
 
-def 
+
+
+def get_F1_score(assigned_labels,true_labels):
+    num_TPs = 0
+    num_FPs = 0
+    num_TNs = 0
+    num_FNs = 0
+
+
+    for i in range(len(assigned_labels)):
+        if(assigned_labels[i] == 0 and true_labels[i] == 0):num_TNs += 1
+        elif(assigned_labels[i] == 1 and true_labels[i] == 1):num_TPs += 1
+        elif(assigned_labels[i] == 1 and true_labels[i] == 0):num_FPs += 1
+        elif(assigned_labels[i] == 0 and true_labels[i] == 1):num_FNs += 1
+
+    F1_score = num_TPs
+
+
+
+
+
+

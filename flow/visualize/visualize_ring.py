@@ -64,8 +64,6 @@ def get_sim_timeseries(csv_path,warmup_period=0.0):
 		end_time = time.time()
 		print('Data loaded, total time: '+str(end_time-begin_time))
 	
-
-
 def get_sim_timeseries_i24(csv_path,warmup_period=0.0):
 	row_num = 1
 	curr_veh_id = 'id'
@@ -142,6 +140,7 @@ def get_sim_timeseries_all_data(csv_path,warmup_period=0.0):
 		id_index = 0
 		time_index = 0
 		row1 = next(csvreader)
+		num_entries = len(row1)
 		while(row1[id_index]!='id' and id_index<num_entries):id_index +=1
 		while(row1[time_index]!='time' and time_index<num_entries):time_index +=1
 
@@ -150,7 +149,7 @@ def get_sim_timeseries_all_data(csv_path,warmup_period=0.0):
 		for row in csvreader:
 			if(row_num > 1):
 				# Don't read header
-				if(curr_veh_id != row[curr_veh_id]):
+				if(curr_veh_id != row[id_index]):
 					#Add in new data to the dictionary:
 					
 					#Store old data:
@@ -158,11 +157,11 @@ def get_sim_timeseries_all_data(csv_path,warmup_period=0.0):
 						sim_dict[curr_veh_id] = curr_veh_data
 					#Rest where data is being stashed:
 					curr_veh_data = []
-					curr_veh_id = row[curr_veh_id] # Set new veh id
+					curr_veh_id = row[id_index] # Set new veh id
 					#Allocate space for storing:
 					sim_dict[curr_veh_id] = []
 
-				curr_veh_id = row[curr_veh_id]
+				curr_veh_id = row[id_index]
 				time = float(row[0])
 				if(time > warmup_period):
 					# data = [time,speed,headway,leader_rel_speed]

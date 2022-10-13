@@ -223,30 +223,6 @@ def get_sim_timeseries_all_data(csv_path,warmup_period=0.0):
         print('Data loaded.')
     return sim_dict
 
-def get_vehicle_types(csv_path):
-
-    curr_veh_id = 'id'
-    veh_types = {}
-
-    with open(csv_path, newline='') as csvfile:
-        csvreader = csv.reader(csvfile, delimiter=',')
-        id_index = 0
-        type_index = 0
-
-        row1 = next(csvreader)
-        num_entries = len(row1)
-        while(row1[id_index]!='id' and id_index<num_entries):id_index +=1
-        while(row1[type_index]!='type' and type_index<num_entries):type_index +=1
-
-        for row in csvreader:
-                # Don't read header
-                if(curr_veh_id != row[id_index]):
-                    curr_veh_id = row[id_index]
-                    veh_types[curr_veh_id] = row[type_index]
-                    #Add in new data to the dictionary:
-
-    return veh_types
-
 def get_losses_complete_obs(emission_path,model,warmup_period=600):
 
     begin_time = time.time()

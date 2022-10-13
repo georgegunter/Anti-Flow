@@ -33,62 +33,6 @@ import csv
 from sklearn.metrics import roc_curve,auc
 
 
-# def get_sim_timeseries(csv_path,warmup_period=0.0):
-#     row_num = 1
-#     curr_veh_id = 'id'
-#     sim_dict = {}
-#     curr_veh_data = []
-    
-#     edge_list = ['Eastbound_3','Eastbound_4','Eastbound_5','Eastbound_6','Eastbound_7']    
-
-#     with open(csv_path, newline='') as csvfile:
-#         csvreader = csv.reader(csvfile, delimiter=',')
-
-#         id_index = 0        
-#         time_index = 0
-#         speed_index = 0
-#         headway_index = 0
-#         relvel_index = 0
-#         edge_index = 0
-
-#         edge_list = ['Eastbound_3','Eastbound_4','Eastbound_5','Eastbound_6','Eastbound_7']
-
-#         row1 = next(csvreader)
-#         num_entries = len(row1)
-#         while(row1[id_index]!='id' and id_index<num_entries):id_index +=1
-#         while(row1[edge_index]!='edge_id' and edge_index<num_entries):edge_index +=1
-#         while(row1[time_index]!='time' and time_index<num_entries):time_index +=1
-#         while(row1[speed_index]!='speed' and speed_index<num_entries):speed_index +=1
-#         while(row1[headway_index]!='headway' and headway_index<num_entries):headway_index +=1
-#         while(row1[relvel_index]!='leader_rel_speed' and relvel_index<num_entries):relvel_index +=1
-
-
-
-#         for row in csvreader:
-#             if(row_num > 1):
-#                 # Don't read header
-#                 if(curr_veh_id != row[id_index]):
-#                     #Store old data:
-#                     if(len(curr_veh_data)>0):
-#                         sim_dict[curr_veh_id] = np.array(curr_veh_data).astype(float)
-#                         sys.stdout.write('\r'+'Veh id: '+curr_veh_id+ ' row: ' +str(row_num)+'\r')
-#                     #Rest where data is being stashed:
-#                     curr_veh_data = []
-#                     curr_veh_id = row[id_index] # Set new veh id
-#                 curr_veh_id = row[id_index]
-#                 time = float(row[time_index])
-#                 edge = row[edge_index]
-#                 if(time > warmup_period and edge in edge_list):
-#                     # data = [time,speed,headway,leader_rel_speed]
-#                     data = [row[time_index],row[speed_index],row[headway_index],row[relvel_index]]
-#                     curr_veh_data.append(data)
-#             row_num += 1
-
-#         #Add the very last vehicle's information:
-#         sim_dict[curr_veh_id] = np.array(curr_veh_data).astype(float)
-#         print('Data loaded.')
-#     return sim_dict
-
 def get_sim_timeseries(csv_path,warmup_period=0.0):
     row_num = 1
     curr_veh_id = 'id'
@@ -223,6 +167,7 @@ def get_sim_timeseries_all_data(csv_path,warmup_period=0.0):
         print('Data loaded.')
     return sim_dict
 
+
 def get_vehicle_types(csv_path):
 
     curr_veh_id = 'id'
@@ -246,6 +191,7 @@ def get_vehicle_types(csv_path):
                     #Add in new data to the dictionary:
 
     return veh_types
+
 
 def get_losses_complete_obs(emission_path,model,warmup_period=600):
 
@@ -365,6 +311,30 @@ def get_sim_name(file_name):
     while(file_name[i:i+3] != 'Dur'):i+=1
     return file_name[i:]
 
+
+def get_attack_params(sim_name):
+	num_chars = len(sim_name)
+
+	i = 0
+	while(sim_name[i:i+3] != 'Dur' and i < num_chars):i += 1
+	i += 4
+	j = i
+	while(sim_name[j] != '_' and j < num_chars): j+= 1
+
+	TAD = float(sim_name[i:j])
+
+	i=j
+	while(sim_name[i:i+3] != 'Mag' and i < num_chars):i += 1
+	i += 4
+
+	j = i
+	while(sim_name[j] != '_' and j < num_chars): j+= 1
+
+	ADR = float(sim_name[i:j])
+
+	return [TAD,ADR]
+
+
 def process_file_for_losses(emission_file_path,loss_emission_repo,model,warmup_period=1200):
     timeseries_dict = get_sim_timeseries(csv_path=emission_file_path,warmup_period=warmup_period)
     i24_losses_test = get_rec_errors(timeseries_dict,model,warmup_period=warmup_period)
@@ -394,57 +364,6 @@ def get_losses_csv(file_path):
     for veh_id in loss_dict:
         loss_dict[veh_id] = np.array(loss_dict[veh_id])
     return loss_dict
-
-if __name__ == '__main__':
-    model = get_cnn_lstm_ae_model(n_features=4)
-    # Load in a trained model:
-    # MODEL_PATH = os.path.join(os.getcwd(),'models/cnn_lstm_ae_i24_detector_complete_obs_ver2.pt')
-    MODEL_PATH = os.path.join(os.getcwd(),'models/cnn_lstm_ae_i24_cnn_lstm_ae_detection_model.pt')
-    model.load_state_dict(torch.load(MODEL_PATH,map_location=torch.device('cpu')))
-
-    loss_emission_repo = '/Volumes/My Passport for Mac/i24_random_sample/ae_rec_error_results'
-
-    emission_file_repo = '/Volumes/My Passport for Mac/i24_random_sample/simulations'
-
-    existing_loss_files = []
-    files_list = os.listdir(loss_emission_repo)
-    for file_name in files_list:
-        if(file_name[-3:] == 'csv'):existing_loss_files.append(file_name)
-
-    files_list = os.listdir(emission_file_repo)
-
-    all_emission_files = []
-
-    for file_name in files_list:
-        if(file_name[-3:] == 'csv' and file_name not in existing_loss_files):
-            all_emission_files.append(file_name)
-
-    loss_result_ids = []
-
-
-    begin_processing_losses_time = time.time()
-
-    warmup_period = 1200
-    print('Loading losses. ')
-    ray.init()
-    for file_name in all_emission_files:
-        emission_file_path = os.path.join(emission_file_repo,file_name)
-
-        loss_result_ids.append(process_file_for_losses_ray.remote(emission_file_path,
-            loss_emission_repo,
-            model,
-            warmup_period=warmup_period))
-
-    file_results = ray.get(loss_result_ids)
-
-    print('Finished finding losses. Total compute time: '+str(time.time() - begin_processing_losses_time))
-
-    
-
-
-
-
-
 
 
 

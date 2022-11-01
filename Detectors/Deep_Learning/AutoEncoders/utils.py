@@ -260,14 +260,29 @@ def train_model(model,train_X,model_file_name,n_epoch=150,seq_len=100):
     print('Finished training.')
     return model
 
-def make_train_X(timeseries_list,num_samples_per_veh = 10,seq_len = 100):
+def make_train_X(timeseries_list,
+                 num_samples_per_veh = 10,
+                 seq_len = 100):
     '''Should accept a list of lists of numpy arrays which are all synced timeseries'''
     training_data_list = []
     for sample in timeseries_list:
-        sample_length = len(sample[0])
         
         num_features = len(sample)
-        
+        sample_length = len(sample[0])
+
+        # if(len(sample.shape)==1):
+        #     num_features = 1
+        #     sample_length = len(sample)
+        # else:
+
+        #     if(sample.shape[0]<sample.shape[1]):
+        #         sample_length = len(sample[0,:])
+        #         num_features = len(sample[:,0])
+
+        #     else:
+        #         sample_length = len(sample[:,0])
+        #         num_features = len(sample[0,:])
+
         sample_start_points = np.random.randint(sample_length-seq_len,size=num_samples_per_veh)
         for i in range(num_samples_per_veh):
             start = sample_start_points[i]
@@ -277,6 +292,11 @@ def make_train_X(timeseries_list,num_samples_per_veh = 10,seq_len = 100):
             
             for j in range(num_features):
                 #j iterates through the different features:
+                
+                # if(len(sample.shape)==1):
+                #     timeseries_measurement = sample[start:end]
+                #     training_data_sample[j*seq_len:(j+1)*seq_len] = timeseries_measurement.reshape(seq_len,1)
+                # else:
                 timeseries_measurement = sample[j][start:end]
                 training_data_sample[j*seq_len:(j+1)*seq_len] = timeseries_measurement.reshape(seq_len,1)
             

@@ -6,7 +6,7 @@ from Detectors.Deep_Learning.AutoEncoders.utils import SeqDataset,train_epoch,ev
 from Detectors.Deep_Learning.AutoEncoders.utils import get_loss_filter_indiv as loss_smooth
 from Detectors.Deep_Learning.AutoEncoders.cnn_lstm_ae import CNNRecurrentAutoencoder
 
-from proccess_i24_losses import get_sim_timeseries
+from process_i24_losses import get_sim_timeseries
 
 
 def train_i24_detection_model(timeseries_data,warmup_period,model_file_name=None,model=None,n_epoch=100):
@@ -42,12 +42,12 @@ def train_i24_detection_model(timeseries_data,warmup_period,model_file_name=None
 
 
 if __name__ == '__main__':
-	training_data_path = '/Volumes/My Passport for Mac/benign_initial_i24/I-24_benign_inflow_600.csv'
+	training_data_path = '/Volumes/My Passport for Mac/benign_initial_i24/I-24_benign_inflow_1200.csv'
 
 	warmup_period = 600
 	timeseries_data = get_sim_timeseries(csv_path=training_data_path,warmup_period=warmup_period)
 
-	i24_detection_model = train_i24_detection_model(timeseries_data,warmup_period,model_file_name='i24_inflow_600_detection_model')
+	i24_detection_model = train_i24_detection_model(timeseries_data,warmup_period,model_file_name='i24_inflow_1200_detection_model')
 
 
 

@@ -399,12 +399,14 @@ if __name__ == '__main__':
     model = get_cnn_lstm_ae_model(n_features=4)
     # Load in a trained model:
     # MODEL_PATH = os.path.join(os.getcwd(),'models/cnn_lstm_ae_i24_detector_complete_obs_ver2.pt')
-    MODEL_PATH = os.path.join(os.getcwd(),'models/cnn_lstm_ae_i24_cnn_lstm_ae_detection_model.pt')
+    # MODEL_PATH = os.path.join(os.getcwd(),'models/cnn_lstm_ae_i24_cnn_lstm_ae_detection_model.pt')
+
+    MODEL_PATH = os.path.join(os.getcwd(),'models/cnn_lstm_ae_i24_inflow_1200_detection_model.pt')
     model.load_state_dict(torch.load(MODEL_PATH,map_location=torch.device('cpu')))
 
-    loss_emission_repo = '/Volumes/My Passport for Mac/i24_random_sample/ae_rec_error_results'
 
-    emission_file_repo = '/Volumes/My Passport for Mac/i24_random_sample/simulations'
+    loss_emission_repo = '/Volumes/My Passport for Mac/i24_random_sample/ae_rec_error_results/1200_inflow'
+    emission_file_repo = '/Volumes/My Passport for Mac/i24_random_sample/simulations/1200_inflow'
 
     existing_loss_files = []
     files_list = os.listdir(loss_emission_repo)

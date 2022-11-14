@@ -167,6 +167,32 @@ def get_sim_timeseries_all_data(csv_path,warmup_period=0.0):
         print('Data loaded.')
     return sim_dict
 
+
+def get_vehicle_types(csv_path):
+
+    curr_veh_id = 'id'
+    veh_types = {}
+
+    with open(csv_path, newline='') as csvfile:
+        csvreader = csv.reader(csvfile, delimiter=',')
+        id_index = 0
+        type_index = 0
+
+        row1 = next(csvreader)
+        num_entries = len(row1)
+        while(row1[id_index]!='id' and id_index<num_entries):id_index +=1
+        while(row1[type_index]!='type' and type_index<num_entries):type_index +=1
+
+        for row in csvreader:
+                # Don't read header
+                if(curr_veh_id != row[id_index]):
+                    curr_veh_id = row[id_index]
+                    veh_types[curr_veh_id] = row[type_index]
+                    #Add in new data to the dictionary:
+
+    return veh_types
+
+
 def get_losses_complete_obs(emission_path,model,warmup_period=600):
 
     begin_time = time.time()
@@ -285,6 +311,30 @@ def get_sim_name(file_name):
     while(file_name[i:i+3] != 'Dur'):i+=1
     return file_name[i:]
 
+
+def get_attack_params(sim_name):
+    num_chars = len(sim_name)
+
+    i = 0
+    while(sim_name[i:i+3] != 'Dur' and i < num_chars):i += 1
+    i += 4
+    j = i
+    while(sim_name[j] != '_' and j < num_chars): j+= 1
+
+    TAD = float(sim_name[i:j])
+
+    i=j
+    while(sim_name[i:i+3] != 'Mag' and i < num_chars):i += 1
+    i += 4
+
+    j = i
+    while(sim_name[j] != '_' and j < num_chars): j+= 1
+
+    ADR = float(sim_name[i:j])
+
+    return [TAD,ADR]
+
+
 def process_file_for_losses(emission_file_path,loss_emission_repo,model,warmup_period=1200):
     timeseries_dict = get_sim_timeseries(csv_path=emission_file_path,warmup_period=warmup_period)
     i24_losses_test = get_rec_errors(timeseries_dict,model,warmup_period=warmup_period)
@@ -314,4 +364,14 @@ def get_losses_csv(file_path):
     for veh_id in loss_dict:
         loss_dict[veh_id] = np.array(loss_dict[veh_id])
     return loss_dict
+
+
+
+
+
+
+
+
+
+
 

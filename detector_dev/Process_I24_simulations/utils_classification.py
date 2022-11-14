@@ -79,7 +79,7 @@ def f1_calculation(assigned_labels_list,vehicle_labels_list):
 
     for i in range(num_samples):
         classifier_label = assigned_labels_list[i]
-        true_label = vehicle_types_list[]
+        true_label = vehicle_types_list[i]
         if(true_label == 1 and classifier_label == 1):
             tp += 1
         elif(true_label == 1 and classifier_label == 0):

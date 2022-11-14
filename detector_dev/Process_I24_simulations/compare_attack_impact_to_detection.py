@@ -124,21 +124,24 @@ def get_auc(rec_error_csv_path,sim_data_csv_path):
 
 
 
-def get_attack_file_name_from_params(duration,magnitude):
-	file_name = 'Dur_'+str(duration)+'_Mag_'+str(magnitude)+'_Inflow_1800_ACCPenetration_0.2_AttackPenetration_0.1_ver_1.csv'
+def get_attack_file_name_from_params(duration,magnitude,inflow=1800):
+	file_name = 'Dur_'+str(duration)+'_Mag_'+str(magnitude)+'_Inflow_'+str(inflow)+'_ACCPenetration_0.2_AttackPenetration_0.1_ver_1.csv'
 	return file_name
 
 
 
 if __name__ == '__main__':
+
+	inflow = 1200
+
 	all_rec_error_csv_paths = []
-	rec_error_emission_repo = '/Volumes/My Passport for Mac/i24_random_sample/ae_rec_error_results'
+	rec_error_emission_repo = '/Volumes/My Passport for Mac/i24_random_sample/ae_rec_error_results/'+str(inflow)+'_inflow'
 	all_rec_error_csv_file_names = os.listdir(rec_error_emission_repo)
 	for csv_rec_error_file in all_rec_error_csv_file_names:
 		all_rec_error_csv_paths.append(os.path.join(rec_error_emission_repo,csv_rec_error_file))
 
 	all_sim_data_csv_paths = []
-	sim_data_repo = '/Volumes/My Passport for Mac/i24_random_sample/simulations'
+	sim_data_repo = '/Volumes/My Passport for Mac/i24_random_sample/simulations/'+str(inflow)+'_inflow'
 	all_sim_data_csv_file_names = os.listdir(sim_data_repo)
 	for csv_sim_data_file in all_sim_data_csv_file_names:
 		all_sim_data_csv_paths.append(os.path.join(sim_data_repo,csv_sim_data_file))

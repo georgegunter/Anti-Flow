@@ -391,43 +391,21 @@ def run_batch_random_sims(attack_magnitude_range,attack_duration_range,acc_penet
 
 if __name__ == '__main__':
 
-	attack_magnitude_range = [0,-2.0]
-	attack_duration_range = [0,20]
-
+	emission_path = '/Volumes/My Passport for Mac/benign_initial_i24'
+	acc_penetration = 0.2
+	attack_penetration = 0.0001 # Can't be exactly 0
+	attack_magnitude = 0.0
+	attack_duration = 0.0
 	inflow = 600
 
-	emission_path = '/Volumes/My Passport for Mac/i24_random_sample/simulations/'+str(inflow)+'_inflow'
-	acc_penetration = 0.2
-	attack_penetration = 0.1
-	
 
-	num_samples = 50
-	ray.init(num_cpus=5)
-	run_batch_random_sims(attack_magnitude_range,attack_duration_range,acc_penetration,attack_penetration,inflow,num_samples,emission_path)
 
-	# attack_magnitude = -1.0
-	# attack_duration = 10.0
-	# attack_penetration = 0.1
-	# acc_penetration = 0.2
-	# # inflow = 2400
-	# inflow = 1800
+	run_attack_sim(attack_duration,attack_magnitude,acc_penetration,attack_penetration,inflow,emission_path)
 
-	# emission_path = '/Volumes/My Passport for Mac/'
 
-	
-	# flow_params = get_flow_params_with_attack(attack_duration,
-	# 	attack_magnitude,
-	# 	acc_penetration,
-	# 	inflow,
-	# 	emission_path,
-	# 	attack_penetration)
 
-	# begin_sim_time = time.time()
 
-	# run_sim(flow_params,emission_path)
 
-	# end_sim_time = time.time()
 
-	# print('Total simulation time: '+str(end_sim_time-begin_sim_time))
 
 

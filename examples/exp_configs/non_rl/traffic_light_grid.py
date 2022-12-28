@@ -8,7 +8,7 @@ from flow.core.params import InFlows
 from flow.envs.ring.accel import AccelEnv, ADDITIONAL_ENV_PARAMS
 from flow.networks import TrafficLightGridNetwork
 
-USE_INFLOWS = False
+USE_INFLOWS = True
 
 v_enter = 10
 inner_length = 300
@@ -16,10 +16,10 @@ long_length = 500
 short_length = 300
 n_rows = 2
 n_columns = 3
-num_cars_left = 20
-num_cars_right = 20
-num_cars_top = 20
-num_cars_bot = 20
+num_cars_left = 1
+num_cars_right = 1
+num_cars_top = 1
+num_cars_bot = 1
 tot_cars = (num_cars_left + num_cars_right) * n_columns \
            + (num_cars_top + num_cars_bot) * n_rows
 
@@ -89,13 +89,16 @@ def get_flow_params(col_num, row_num, additional_net_params):
     initial = InitialConfig(
         spacing='custom', lanes_distribution=float('inf'), shuffle=True)
 
+    inflow_probability = 0.90
+
+
     inflow = InFlows()
     outer_edges = gen_edges(col_num, row_num)
     for i in range(len(outer_edges)):
         inflow.add(
             veh_type='human',
             edge=outer_edges[i],
-            probability=0.25,
+            probability=inflow_probability,
             departLane='free',
             departSpeed=20)
 
@@ -141,7 +144,7 @@ vehicles.add(
     veh_id="human",
     routing_controller=(GridRouter, {}),
     car_following_params=SumoCarFollowingParams(
-        min_gap=2.5,
+        min_gap=5.0,
         decel=7.5,  # avoid collisions at emergency stops
     ),
     num_vehicles=tot_cars)
@@ -213,7 +216,7 @@ flow_params = dict(
 
     # environment related parameters (see flow.core.params.EnvParams)
     env=EnvParams(
-        horizon=1500,
+        horizon=3000,
         additional_params=ADDITIONAL_ENV_PARAMS.copy(),
     ),
 

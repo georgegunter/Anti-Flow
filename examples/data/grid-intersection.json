@@ -1,0 +1,326 @@
+{
+    "env": {
+        "additional_params": {
+            "max_accel": 3,
+            "max_decel": 3,
+            "sort_vehicles": false,
+            "target_velocity": 10
+        },
+        "clip_actions": true,
+        "done_at_exit": true,
+        "evaluate": false,
+        "horizon": 3000,
+        "sims_per_step": 1,
+        "warmup_steps": 0
+    },
+    "env_name": "flow.envs.ring.accel.AccelEnv",
+    "exp_tag": "grid-intersection",
+    "initial": {
+        "additional_params": {},
+        "bunching": 0,
+        "edges_distribution": "all",
+        "lanes_distribution": Infinity,
+        "min_gap": 0,
+        "perturbation": 0.0,
+        "shuffle": true,
+        "spacing": "custom",
+        "x0": 0
+    },
+    "net": {
+        "additional_params": {
+            "grid_array": {
+                "cars_bot": 1,
+                "cars_left": 1,
+                "cars_right": 1,
+                "cars_top": 1,
+                "col_num": 3,
+                "inner_length": 300,
+                "long_length": 500,
+                "row_num": 2,
+                "short_length": 300
+            },
+            "horizontal_lanes": 1,
+            "speed_limit": 35,
+            "vertical_lanes": 1
+        },
+        "inflows": {
+            "_InFlows__flows": [
+                {
+                    "begin": 1,
+                    "departLane": "free",
+                    "departSpeed": 20,
+                    "edge": "left2_0",
+                    "end": 86400,
+                    "name": "flow_0",
+                    "probability": 0.9,
+                    "vtype": "human"
+                },
+                {
+                    "begin": 1,
+                    "departLane": "free",
+                    "departSpeed": 20,
+                    "edge": "right0_0",
+                    "end": 86400,
+                    "name": "flow_1",
+                    "probability": 0.9,
+                    "vtype": "human"
+                },
+                {
+                    "begin": 1,
+                    "departLane": "free",
+                    "departSpeed": 20,
+                    "edge": "left2_1",
+                    "end": 86400,
+                    "name": "flow_2",
+                    "probability": 0.9,
+                    "vtype": "human"
+                },
+                {
+                    "begin": 1,
+                    "departLane": "free",
+                    "departSpeed": 20,
+                    "edge": "right0_1",
+                    "end": 86400,
+                    "name": "flow_3",
+                    "probability": 0.9,
+                    "vtype": "human"
+                },
+                {
+                    "begin": 1,
+                    "departLane": "free",
+                    "departSpeed": 20,
+                    "edge": "left2_2",
+                    "end": 86400,
+                    "name": "flow_4",
+                    "probability": 0.9,
+                    "vtype": "human"
+                },
+                {
+                    "begin": 1,
+                    "departLane": "free",
+                    "departSpeed": 20,
+                    "edge": "right0_2",
+                    "end": 86400,
+                    "name": "flow_5",
+                    "probability": 0.9,
+                    "vtype": "human"
+                },
+                {
+                    "begin": 1,
+                    "departLane": "free",
+                    "departSpeed": 20,
+                    "edge": "bot0_0",
+                    "end": 86400,
+                    "name": "flow_6",
+                    "probability": 0.9,
+                    "vtype": "human"
+                },
+                {
+                    "begin": 1,
+                    "departLane": "free",
+                    "departSpeed": 20,
+                    "edge": "top0_3",
+                    "end": 86400,
+                    "name": "flow_7",
+                    "probability": 0.9,
+                    "vtype": "human"
+                },
+                {
+                    "begin": 1,
+                    "departLane": "free",
+                    "departSpeed": 20,
+                    "edge": "bot1_0",
+                    "end": 86400,
+                    "name": "flow_8",
+                    "probability": 0.9,
+                    "vtype": "human"
+                },
+                {
+                    "begin": 1,
+                    "departLane": "free",
+                    "departSpeed": 20,
+                    "edge": "top1_3",
+                    "end": 86400,
+                    "name": "flow_9",
+                    "probability": 0.9,
+                    "vtype": "human"
+                }
+            ]
+        },
+        "osm_path": null,
+        "template": null
+    },
+    "network": "flow.networks.traffic_light_grid.TrafficLightGridNetwork",
+    "sim": {
+        "color_by_speed": false,
+        "disable_collisions": false,
+        "emission_path": "./data",
+        "force_color_update": false,
+        "lateral_resolution": null,
+        "load_state": null,
+        "no_step_log": true,
+        "num_clients": 1,
+        "overtake_right": false,
+        "port": null,
+        "print_warnings": true,
+        "pxpm": 2,
+        "render": true,
+        "restart_instance": false,
+        "save_render": false,
+        "save_state_file": "initial_state.xml",
+        "save_state_time": null,
+        "seed": null,
+        "show_radius": false,
+        "sight_radius": 25,
+        "sim_step": 0.1,
+        "teleport_time": -1,
+        "use_ballistic": false
+    },
+    "simulator": "traci",
+    "tls": {
+        "_TrafficLightParams__tls_properties": {
+            "center0": {
+                "id": "center0",
+                "phases": [
+                    {
+                        "duration": "31",
+                        "maxDur": "45",
+                        "minDur": "8",
+                        "state": "GrGrGrGrGrGr"
+                    },
+                    {
+                        "duration": "6",
+                        "maxDur": "6",
+                        "minDur": "3",
+                        "state": "yryryryryryr"
+                    },
+                    {
+                        "duration": "31",
+                        "maxDur": "45",
+                        "minDur": "8",
+                        "state": "rGrGrGrGrGrG"
+                    },
+                    {
+                        "duration": "6",
+                        "maxDur": "6",
+                        "minDur": "3",
+                        "state": "ryryryryryry"
+                    }
+                ],
+                "programID": 1,
+                "type": "static"
+            },
+            "center1": {
+                "id": "center1",
+                "phases": [
+                    {
+                        "duration": "31",
+                        "maxDur": "45",
+                        "minDur": "8",
+                        "state": "GrGrGrGrGrGr"
+                    },
+                    {
+                        "duration": "6",
+                        "maxDur": "6",
+                        "minDur": "3",
+                        "state": "yryryryryryr"
+                    },
+                    {
+                        "duration": "31",
+                        "maxDur": "45",
+                        "minDur": "8",
+                        "state": "rGrGrGrGrGrG"
+                    },
+                    {
+                        "duration": "6",
+                        "maxDur": "6",
+                        "minDur": "3",
+                        "state": "ryryryryryry"
+                    }
+                ],
+                "programID": 1,
+                "type": "static"
+            },
+            "center2": {
+                "detector-gap": 0.6,
+                "id": "center2",
+                "max-gap": 3.0,
+                "phases": [
+                    {
+                        "duration": "31",
+                        "maxDur": "45",
+                        "minDur": "8",
+                        "state": "GrGrGrGrGrGr"
+                    },
+                    {
+                        "duration": "6",
+                        "maxDur": "6",
+                        "minDur": "3",
+                        "state": "yryryryryryr"
+                    },
+                    {
+                        "duration": "31",
+                        "maxDur": "45",
+                        "minDur": "8",
+                        "state": "rGrGrGrGrGrG"
+                    },
+                    {
+                        "duration": "6",
+                        "maxDur": "6",
+                        "minDur": "3",
+                        "state": "ryryryryryry"
+                    }
+                ],
+                "programID": 1,
+                "show-detectors": true,
+                "type": "actuated"
+            }
+        },
+        "baseline": false
+    },
+    "veh": [
+        {
+            "acceleration_controller": [
+                "SimCarFollowingController",
+                {}
+            ],
+            "car_following_params": {
+                "controller_params": {
+                    "accel": 2.6,
+                    "carFollowModel": "IDM",
+                    "decel": 7.5,
+                    "impatience": 0.5,
+                    "maxSpeed": 30,
+                    "minGap": 5.0,
+                    "sigma": 0.5,
+                    "speedDev": 0.1,
+                    "speedFactor": 1.0,
+                    "tau": 1.0
+                },
+                "speed_mode": 25
+            },
+            "energy_model": "PDMCombustionEngine",
+            "initial_speed": 0,
+            "lane_change_controller": [
+                "SimLaneChangeController",
+                {}
+            ],
+            "lane_change_params": {
+                "controller_params": {
+                    "laneChangeModel": "LC2013",
+                    "lcCooperative": "1.0",
+                    "lcKeepRight": "1.0",
+                    "lcSpeedGain": "1.0",
+                    "lcStrategic": "1.0"
+                },
+                "lane_change_mode": 512
+            },
+            "num_vehicles": 10,
+            "routing_controller": [
+                "GridRouter",
+                {}
+            ],
+            "veh_id": "human"
+        }
+    ]
+}

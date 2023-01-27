@@ -308,6 +308,70 @@ def get_cnn_lstm_ae_model(n_features=1,seq_len=100):
                                     device)
     return model
 
+class binning_one_hot_processor():
+    def __init__(self,n_features,bin_ranges_list,seq_len):
+        self.n_features = n_features
+        self.bin_ranges_list = bin_ranges_list
+        self.seq_len = seq_len
+
+    def get_bin_index_and_one_hot(self,x_ave,feature_index):
+        bin_index = 0
+        found_bin = False
+        bin_ranges = self.bin_ranges_list[feature_index]
+        n_bins = len(bin_ranges)
+
+        while(not found_bin and bin_index<n_bins):
+            # iterate through bins to see if fits into one:
+            if(x_ave>=bin_ranges[bin_index] and x_ave<=bin_ranges[bin_index+1]):
+                found_bin = True
+            else:
+                bin_index += 1
+
+        one_hot_encoding = np.zeros(n_bins,)
+
+        one_hot_encoding[bin_index] = 1.0
+
+        return bin_index,one_hot_encoding
+
+    def get_processed_x(self,x_timeseries_list):
+        x_new_timeseries = []
+
+        feature_num = 0
+
+        for x_t in x_timeseries_list:
+
+            # zero center and find correct bin:
+            x_ave = np.mean(x_t)
+            bin_index,one_hot_encoding = self.get_bin_index_and_one_hot(x_ave,feature_num)
+            x_zero_centered = x_t - x_ave
+
+            # put back into timeseries list and append one_hot_encoding:
+
+            a = x_zero_centered.reshape(self.seq_len,)
+            b = one_hot_encoding.reshape(len(self.bin_ranges_list[feature_num]),)
+
+            x_new = np.concatenate((a,b))
+
+            x_new_timeseries.append(x_new)
+
+            feature_num += 1 #increment the feature considering
+
+
+        return x_new_timeseries
+
+
+
+
+
+            
+
+
+
+
+
+
+
+
 
 # def plot_seqs(model, dataloader):
 #     model.eval()

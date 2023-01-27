@@ -136,7 +136,8 @@ class FollowerStopper(BaseController):
 
     def get_custom_accel(self, this_vel, lead_vel, h):
         """See parent class."""
-        raise NotImplementedError
+        # raise NotImplementedError
+        return 0
 
 
 class NonLocalFollowerStopper(FollowerStopper):

@@ -40,6 +40,7 @@ def run_ring_sim_variable_cfm(ring_length=300,
     num_lanes=1,
     sim_time=500,
     want_render=False,
+    want_shuffle=True,
     emission_path='data'):
     
 
@@ -51,7 +52,7 @@ def run_ring_sim_variable_cfm(ring_length=300,
 
     #initialize the simulation using above parameters:
     traffic_lights = TrafficLightParams() #This is empty, so no traffic lights are used.
-    initial_config = InitialConfig(shuffle=True,spacing="uniform", perturbation=1) #Vehicles start out evenly spaced.
+    initial_config = InitialConfig(shuffle=want_shuffle,spacing="uniform", perturbation=1) #Vehicles start out evenly spaced.
     vehicles = VehicleParams() #The vehicles object will store different classes of drivers:
     sim_params = SumoParams(sim_step=time_step, render=want_render, emission_path=emission_path) #Sets the simulation time-step and where data will be recorded.
     env_params = EnvParams(additional_params=ADDITIONAL_ENV_PARAMS)

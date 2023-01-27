@@ -20,9 +20,9 @@ from copy import deepcopy
 
 import sys
 
-import utils
+import detector_dev.utils
 
-from utils import assess_relative_model_on_attack
+from detector_dev.utils import assess_relative_model_on_attack
 
 import ray
 
@@ -51,6 +51,9 @@ def get_sim_timeseries(csv_path,warmup_period=0.0):
         edge_index = 0
         pos_index = 0
 
+        x_index = 0
+        y_index = 0
+
 
         edge_list = ['Eastbound_3',':202186118','Eastbound_4','Eastbound_5','Eastbound_6',':202186134','Eastbound_7']
 
@@ -72,7 +75,7 @@ def get_sim_timeseries(csv_path,warmup_period=0.0):
                     #Add in new data to the dictionary:
                     
                     #Store old data:
-                    if(len(curr_veh_data)>0):
+                    if(len(curr_veh_data)>101):
                         sim_dict[curr_veh_id] = np.array(curr_veh_data).astype(float)
                     #Rest where data is being stashed:
                     curr_veh_data = []
@@ -101,7 +104,8 @@ def get_sim_timeseries(csv_path,warmup_period=0.0):
             row_num += 1
 
         #Add the very last vehicle's information:
-        sim_dict[curr_veh_id] = np.array(curr_veh_data).astype(float)
+        if(len(curr_veh_data)>101):
+            sim_dict[curr_veh_id] = np.array(curr_veh_data).astype(float)
         end_time = time.time()
         print('Data loaded, total time: '+str(end_time-begin_time))
         
@@ -146,7 +150,7 @@ def get_sim_timeseries_all_data(csv_path,warmup_period=0.0):
                     #Add in new data to the dictionary:
                     
                     #Store old data:
-                    if(len(curr_veh_data)>0):
+                    if(len(curr_veh_data)>3):
                         sim_dict[curr_veh_id] = curr_veh_data
                     #Rest where data is being stashed:
                     curr_veh_data = []
@@ -166,7 +170,6 @@ def get_sim_timeseries_all_data(csv_path,warmup_period=0.0):
         sim_dict[curr_veh_id] = curr_veh_data
         print('Data loaded.')
     return sim_dict
-
 
 def get_vehicle_types(csv_path):
 
@@ -191,7 +194,6 @@ def get_vehicle_types(csv_path):
                     #Add in new data to the dictionary:
 
     return veh_types
-
 
 def get_losses_complete_obs(emission_path,model,warmup_period=600):
 
@@ -366,7 +368,31 @@ def get_losses_csv(file_path):
     return loss_dict
 
 
+def get_speeds_by_time(timeseries_dict,dt=0.1):
+    speeds_by_time = {}
 
+    total_vehicles = len(timeseries_dict)
+
+    num_veh_processed = 0
+
+    for veh_id in timeseries_dict:
+        times = timeseries_dict[veh_id][:,0]
+        speeds = timeseries_dict[veh_id][:,1]
+        for i in range(len(times)):
+            t = times[i]
+            t = np.round(t,1)
+            v = speeds[i]
+
+            if(t in speeds_by_time):
+                speeds_by_time[t].append(v)
+            else:
+                speeds_by_time[t] = [v]
+
+        sys.stdout.write('\r'+'Vehicles processed: '+str(num_veh_processed)+'/'+str(total_vehicles)+'\r')
+
+        num_veh_processed += 1
+
+    return speeds_by_time
 
 
 

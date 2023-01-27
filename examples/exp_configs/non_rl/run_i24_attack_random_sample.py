@@ -49,7 +49,7 @@ def get_flow_params_with_attack(attack_duration,
 	inflow,
 	emission_path,
 	attack_penetration,
-	want_render=False,
+	want_render=True,
 	display_attack_info=True,
 	ACC_comp_params=None,
 	ACC_benign_params=None):

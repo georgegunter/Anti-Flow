@@ -395,6 +395,25 @@ def get_speeds_by_time(timeseries_dict,dt=0.1):
     return speeds_by_time
 
 
+def get_speeds_by_time_from_csv(csv_path,dt=0.1):
+    timeseries_dict = get_sim_timeseries(csv_path)
+    speeds_by_time = get_speeds_by_time(timeseries_dict,dt=dt)
+    return speeds_by_time
+
+@ray.remote
+def get_speeds_by_time_from_csv_ray(csv_path,dt=0.1):
+    return [csv_path,get_speeds_by_time_from_csv(csv_path)]
+
+def get_all_speeds_by_time(csv_path_list):
+    result_ids = []
+    for csv_path in csv_path_list:
+        result_ids.append(get_speeds_by_time_from_csv_ray.remote(csv_path))
+
+    speeds_by_times_list = ray.get(result_ids)
+
+    return speeds_by_times_list
+
+
 
 
 

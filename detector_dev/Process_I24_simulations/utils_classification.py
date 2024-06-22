@@ -12,14 +12,7 @@ from Detectors.Deep_Learning.AutoEncoders.utils import get_loss_filter_indiv as 
 
 
 
-def k_means_cluster(rec_error_dict,cluster_diff=0.1):
-
-    max_losses = []
-    veh_ids = []
-    for veh_id in rec_error_dict:
-        losses = rec_error_dict[veh_id]
-        max_losses.append(np.max(losses))
-        veh_ids.append(veh_id)
+def k_means_cluster(max_losses,true_labels,cluster_diff=0.1):
 
     min_l = np.min(max_losses)
     max_l = np.max(max_losses)
@@ -38,23 +31,11 @@ def k_means_cluster(rec_error_dict,cluster_diff=0.1):
         if(label==0):negative_labels.append(l)
         else:positive_labels.append(l) 
 
-    labels_dict = dict.fromkeys(rec_error_dict.keys())
 
     if(np.min(positive_labels)-cluster_diff > np.max(negative_labels)):
+        labels = np.zeros_like(labels)
 
-        for i in range(len(veh_ids)):
-            veh_id = veh_ids[i]
-            label = labels[i]
-            labels_dict[veh_id] = label
-
-    else:
-        for i in range(len(veh_ids)):
-            veh_id = veh_ids[i]
-            label = labels[i]
-            labels_dict[veh_id] = 0
-
-
-    return labels_dict,cluster_centroids
+    return labels,X,cluster_centroids
 
 def threshold_classifer(rec_error_dict,threshold):
     classifier_labels_dict = dict.fromkeys(rec_error_dict.keys())
@@ -79,7 +60,7 @@ def f1_calculation(assigned_labels_list,vehicle_labels_list):
 
     for i in range(num_samples):
         classifier_label = assigned_labels_list[i]
-        true_label = vehicle_types_list[i]
+        true_label = vehicle_labels_list[i]
         if(true_label == 1 and classifier_label == 1):
             tp += 1
         elif(true_label == 1 and classifier_label == 0):
@@ -87,9 +68,9 @@ def f1_calculation(assigned_labels_list,vehicle_labels_list):
         elif(true_label == 0 and classifier_label == 1):
             fn += 1
 
-    f1_score = tp/(tp + 1/2 (fp + fn))
+    f1_score = tp/(tp + (1/2)*(fp + fn))
 
-    return f1
+    return f1_score
 
 
 

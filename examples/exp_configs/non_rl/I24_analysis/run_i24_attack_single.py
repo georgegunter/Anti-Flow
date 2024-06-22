@@ -52,8 +52,10 @@ if __name__ == '__main__':
 
 	inflow = 1800
 
-	emission_path = '/Users/vanderbilt/Desktop/Research_2022/Anti-Flow/detector_dev/Process_I24_simulations/misc_I24_data/'
+	# emission_path = '/Users/vanderbilt/Desktop/Research_2022/Anti-Flow/detector_dev/Process_I24_simulations/misc_I24_data/'
 
+
+	emission_path = '/Volumes/My Passport for Mac/Misc/'
 
 	acc_penetration = 0.2
 	attack_penetration = 0.05

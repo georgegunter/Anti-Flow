@@ -108,7 +108,7 @@ def get_flow_params_with_attack(attack_duration,
 			'h':h,
 			'd_min':d_min,
 			'warmup_steps':WARMUP_STEPS,
-			'Total_Attack_Duration':attack_magnitude,
+			'Total_Attack_Duration':attack_magnitude, #THIS IS A BUG
 			'attack_decel_rate':attack_magnitude,
 			'display_attack_info':display_attack_info,
 			'want_multiple_attacks':True})

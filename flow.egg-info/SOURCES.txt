@@ -1,6 +1,7 @@
 README.md
 setup.py
 examples/__init__.py
+examples/run_i24_adversarial.py
 examples/simulate.py
 examples/train.py
 flow/__init__.py
@@ -28,7 +29,6 @@ flow/controllers/__init__.py
 flow/controllers/base_controller.py
 flow/controllers/base_lane_changing_controller.py
 flow/controllers/base_routing_controller.py
-flow/controllers/car_following_adversarial.py
 flow/controllers/car_following_models.py
 flow/controllers/lane_change_controllers.py
 flow/controllers/rlcontroller.py
@@ -58,6 +58,12 @@ flow/core/kernel/vehicle/__init__.py
 flow/core/kernel/vehicle/aimsun.py
 flow/core/kernel/vehicle/base.py
 flow/core/kernel/vehicle/traci.py
+flow/data_pipeline/__init__.py
+flow/data_pipeline/data_pipeline.py
+flow/data_pipeline/lambda_function.py
+flow/data_pipeline/leaderboard_utils.py
+flow/data_pipeline/query.py
+flow/data_pipeline/run_query.py
 flow/envs/__init__.py
 flow/envs/base.py
 flow/envs/base_env.py
@@ -66,6 +72,7 @@ flow/envs/bottleneck.py
 flow/envs/bottleneck_env.py
 flow/envs/green_wave_env.py
 flow/envs/merge.py
+flow/envs/straightroad_env.py
 flow/envs/test.py
 flow/envs/traffic_light_grid.py
 flow/envs/multiagent/__init__.py
@@ -86,7 +93,7 @@ flow/multiagent_envs/highway.py
 flow/multiagent_envs/multiagent_env.py
 flow/multiagent_envs/traffic_light_grid.py
 flow/networks/I24_Subnetwork.py
-flow/networks/I24_Subnetwork_test_merge.py
+flow/networks/I24_subnetwork.py
 flow/networks/__init__.py
 flow/networks/base.py
 flow/networks/bay_bridge.py
@@ -96,6 +103,7 @@ flow/networks/figure_eight.py
 flow/networks/highway.py
 flow/networks/highway_ramps.py
 flow/networks/i210_subnetwork.py
+flow/networks/lane_reduction.py
 flow/networks/merge.py
 flow/networks/minicity.py
 flow/networks/multi_ring.py
@@ -135,10 +143,11 @@ flow/utils/aimsun/scripting_api.py
 flow/utils/aimsun/struct.py
 flow/visualize/__init__.py
 flow/visualize/capacity_diagram_generator.py
+flow/visualize/plot_custom_callables.py
 flow/visualize/plot_ray_results.py
 flow/visualize/time_space_diagram.py
+flow/visualize/visualize_fuel_consumption.py
 flow/visualize/visualize_ring.py
-flow/visualize/visualizer_rllib.py
 tests/__init__.py
 tests/dummy_server.py
 tests/setup_scripts.py

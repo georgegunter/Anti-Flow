@@ -5,6 +5,28 @@ from importlib import reload
 import flow
 reload(flow)
 
+from flow.networks.ring import RingNetwork
+from flow.core.params import VehicleParams
+from flow.controllers.car_following_models import IDMController #Human driving model
+from flow.controllers.routing_controllers import ContinuousRouter #Router that keeps vehicles on the ring-road
+
+#Lane change controllers:
+# from flow.controllers.lane
+
+
+from flow.networks.ring import ADDITIONAL_NET_PARAMS
+from flow.core.params import NetParams
+from flow.core.params import InitialConfig
+from flow.core.params import TrafficLightParams
+from flow.envs.ring.accel import AccelEnv
+from flow.envs.ring.accel import ADDITIONAL_ENV_PARAMS
+from flow.core.params import SumoParams
+from flow.core.params import EnvParams
+from flow.core.params import SumoCarFollowingParams
+from flow.core.experiment import Experiment
+
+
+
 import Detectors.Deep_Learning.AutoEncoders.utils
 reload(Detectors.Deep_Learning.AutoEncoders.utils)
 from Detectors.Deep_Learning.AutoEncoders.utils import SeqDataset,train_epoch,eval_data,train_model
@@ -15,11 +37,6 @@ import torch
 
 from Detectors.Deep_Learning.AutoEncoders.utils import sliding_window
 from Detectors.Deep_Learning.AutoEncoders.cnn_lstm_ae import CNNRecurrentAutoencoder
-
-import utils
-reload(utils)
-
-from utils import Bando_OVM_FTL
 
 import os
 import shutil
@@ -33,70 +50,172 @@ from Adversaries.controllers.car_following_adversarial import FollowerStopper_Ov
 from Adversaries.controllers.car_following_adversarial import ACC_Benign
 from Adversaries.controllers.car_following_adversarial import ACC_Switched_Controller_Attacked
 
-from flow.controllers.lane_change_controllers import AILaneChangeController
-
-from utils import run_ring_sim_variable_cfm
-
 from Adversaries.controllers import car_following_adversarial
+
+from Adversaries.controllers.base_controller import BaseController
 
 reload(car_following_adversarial)
 
 import time
 
-from utils import run_ring_sim_variable_cfm
 
-def get_losses(timeseries_dict,model,warmup_steps=500,want_timeseries_plot=True):
-    veh_ids = list(timeseries_dict.keys())
-   
-    num_veh_processed = 0
-
-    testing_losses_dict = dict.fromkeys(veh_ids)
-
-    for veh_id in veh_ids:
-        timeseries_list = []
-        
-        speed = timeseries_dict[veh_id][warmup_steps:,1]
-        accel = np.gradient(speed,.1)
-        head_way = timeseries_dict[veh_id][warmup_steps:,2]
-        rel_vel = timeseries_dict[veh_id][warmup_steps:,3]
-        
-        timeseries_list.append([speed,accel,head_way,rel_vel])
-
-        timeseries_list = [speed,accel,head_way,rel_vel]
-
-        _,loss = sliding_window_mult_feat(model,timeseries_list)
-
-        testing_losses_dict[veh_id]=loss
-
-        num_veh_processed+=1
-
-        sys.stdout.write('\r'+'Vehicles processed: '+str(num_veh_processed)+'\r')
-
-    print('\n')
+# For simulation:
+def run_ring_sim_variable_cfm(ring_length=300,
+    driver_controller_list=None,
+    num_lanes=1,
+    sim_time=500,
+    want_render=False,
+    emission_path='data'):
     
-    smoothed_losses = dict.fromkeys(veh_ids)
-    time = timeseries_dict[veh_ids[0]][warmup_steps:,0]
-    
-    #Get smoothed loss values:
-    for veh_id in veh_ids:
-        loss = testing_losses_dict[veh_id]
-        smoothed_loss = loss_smooth(time,loss)
-            
-        smoothed_losses[veh_id] =  loss_smooth(time,loss)
 
-    
-    if(want_timeseries_plot):
-        plt.figure()
-        
-        for veh_id in veh_ids:
-            smoothed_loss = smoothed_losses[veh_id]
-            if('FStop' in veh_id):
-                plt.plot(smoothed_loss,'r')
+    #There is an updated version of this that
+
+    #Simulation parameters:
+    time_step = 0.1 #In seconds, how far each step of the simulation goes.
+    sim_horizon = int(np.floor(sim_time/time_step)) #How many simulation steps will be taken -> Runs for 300 seconds
+
+    #initialize the simulation using above parameters:
+    traffic_lights = TrafficLightParams() #This is empty, so no traffic lights are used.
+    initial_config = InitialConfig(shuffle=True,spacing="uniform", perturbation=1) #Vehicles start out evenly spaced.
+    vehicles = VehicleParams() #The vehicles object will store different classes of drivers:
+    sim_params = SumoParams(sim_step=time_step, render=want_render, emission_path=emission_path) #Sets the simulation time-step and where data will be recorded.
+    env_params = EnvParams(additional_params=ADDITIONAL_ENV_PARAMS)
+    net_params = NetParams(additional_params={'length':ring_length,
+                                              'lanes':num_lanes,
+                                              'speed_limit': 30,
+                                              'resolution': 40})
+
+    if(driver_controller_list is None):
+        print('Running IDM.')
+        num_human_drivers = 40
+        #Default to the IDM if otherwise controllers not specified:
+        vehicles.add("idm_driver",
+            acceleration_controller=(IDMController, {'noise':0.1}),
+            routing_controller=(ContinuousRouter, {}),
+            car_following_params=SumoCarFollowingParams(speed_mode=0),
+            num_vehicles=num_human_drivers)
+
+    else:
+        print('Number of classes of driver: '+str(len(driver_controller_list)))
+        for driver in driver_controller_list:
+
+            if(len(driver)==3):
+                label = driver[0]
+                cfm_controller = driver[1]
+                num_vehicles = driver[2]
+
+                vehicles.add(label,
+                    acceleration_controller = cfm_controller,
+                    routing_controller=(ContinuousRouter, {}),
+                    car_following_params=SumoCarFollowingParams(speed_mode=0),
+                    num_vehicles=num_vehicles)
+
             else:
-                plt.plot(smoothed_loss,'b')
-        
-    return smoothed_losses
+                label = driver[0]
+                cfm_controller = driver[1]
+                lc_controller = driver[2]
+                num_vehicles = driver[3]
 
+                vehicles.add(label,
+                    acceleration_controller = cfm_controller,
+                    lane_change_controller = lc_controller,
+                    routing_controller=(ContinuousRouter, {}),
+                    car_following_params=SumoCarFollowingParams(speed_mode=0),
+                    num_vehicles=num_vehicles)
+
+
+    #initialize the simulation:
+    flow_params = dict(
+        exp_tag='ring_variable_cfm',
+        env_name=AccelEnv,
+        network=RingNetwork,
+        simulator='traci',
+        sim=sim_params,
+        env=env_params,
+        net=net_params,
+        veh=vehicles,
+        initial=initial_config,
+        tls=traffic_lights,
+    )
+
+    flow_params['env'].horizon = sim_horizon
+    exp = Experiment(flow_params)
+    print('Running ring simulation, ring length: '+str(ring_length))
+    
+    sim_res_list = exp.run(1, convert_to_csv=True)
+    
+    return sim_res_list
+
+class Bando_OVM_FTL(BaseController):
+    def __init__(self,
+                 veh_id,
+                 car_following_params,
+                 delay=0.0,
+                 noise=0.0,
+                 fail_safe=None,
+                 a=0.8,
+                 b=20.0,
+                 s0=1.0,
+                 s1=2.0,
+                 Vm=15.0):
+        #Inherit the base controller:
+        BaseController.__init__(
+            self,
+            veh_id,
+            car_following_params,
+            delay=delay,
+            fail_safe=fail_safe,
+            noise=noise)
+        
+        # Model parameters, which can be changed at initialization:
+        self.Vm = Vm
+        self.s0 = s0
+        self.s1 = s1
+        self.a = a
+        self.b = b
+        
+    def get_accel(self, env):
+        """This function is queried during simulation
+           to acquire an acceleration value:"""
+        # env contains all information on the simulation, and 
+        # can be queried to get the state of different vehicles.
+        # We assume this vehicle has access only to its own state,
+        # and the position/speed of the vehicle ahead of it. 
+        lead_id = env.k.vehicle.get_leader(self.veh_id) #Who is the leader
+        v_l = env.k.vehicle.get_speed(lead_id) #Leader speed
+        v = env.k.vehicle.get_speed(self.veh_id) #vehicle's own speed
+        s = env.k.vehicle.get_headway(self.veh_id) #inter-vehicle spacing to leader
+
+        # We build this model off the popular Bando OV-FTL model:
+        v_opt = self.OV(s)
+        ftl = self.FTL(v,v_l,s)
+        u = self.a*(v_opt-v) + self.b*ftl
+        
+        return u #return the acceleration that is set above.
+        
+    def get_custom_accel(self,this_vel, lead_vel, h):
+        """This function can be queried at any time,
+           and is useful for analyzing controller
+           behavior outside of a sim."""
+
+        v = this_vel
+        v_l = lead_vel
+        s = h
+
+        v_opt = self.OV(s)
+        ftl = self.FTL(v,v_l,s)
+        u = self.a*(v_opt-v) + self.b*ftl
+        return u
+    
+    def OV(self,s):
+        return self.Vm*((np.tanh(s/self.s0-self.s1)+np.tanh(self.s1))/(1+np.tanh(self.s1)))
+    
+    def FTL(self,v,v_l,s):
+        return (v_l-v)/(s**2)
+
+def Model_Based_Ring_CFM_SysID(csv_path):
+    '''TO DO'''
+    return None
 
 def make_benign_driver_list_single_lane():
 
@@ -156,8 +275,6 @@ def make_benign_driver_list_single_lane():
 
 
     return driver_controller_list
-
-
 
 def make_mal_driver_list(Total_Attack_Duration=3.0,attack_decel_rate = -.8):
 
@@ -291,6 +408,65 @@ def run_sim_with_attack(Total_Attack_Duration,attack_decel_rate,emission_path):
     file_path = os.path.join(os.getcwd(),sim_res_list_with_attack[1])
     
     return file_path 
+
+
+
+
+
+
+# Related to detection:
+
+def get_losses(timeseries_dict,model,warmup_steps=500,want_timeseries_plot=True):
+    veh_ids = list(timeseries_dict.keys())
+   
+    num_veh_processed = 0
+
+    testing_losses_dict = dict.fromkeys(veh_ids)
+
+    for veh_id in veh_ids:
+        timeseries_list = []
+        
+        speed = timeseries_dict[veh_id][warmup_steps:,1]
+        accel = np.gradient(speed,.1)
+        head_way = timeseries_dict[veh_id][warmup_steps:,2]
+        rel_vel = timeseries_dict[veh_id][warmup_steps:,3]
+        
+        timeseries_list.append([speed,accel,head_way,rel_vel])
+
+        timeseries_list = [speed,accel,head_way,rel_vel]
+
+        _,loss = sliding_window_mult_feat(model,timeseries_list)
+
+        testing_losses_dict[veh_id]=loss
+
+        num_veh_processed+=1
+
+        sys.stdout.write('\r'+'Vehicles processed: '+str(num_veh_processed)+'\r')
+
+    print('\n')
+    
+    smoothed_losses = dict.fromkeys(veh_ids)
+    time = timeseries_dict[veh_ids[0]][warmup_steps:,0]
+    
+    #Get smoothed loss values:
+    for veh_id in veh_ids:
+        loss = testing_losses_dict[veh_id]
+        smoothed_loss = loss_smooth(time,loss)
+            
+        smoothed_losses[veh_id] =  loss_smooth(time,loss)
+
+    
+    if(want_timeseries_plot):
+        plt.figure()
+        
+        for veh_id in veh_ids:
+            smoothed_loss = smoothed_losses[veh_id]
+            if('FStop' in veh_id):
+                plt.plot(smoothed_loss,'r')
+            else:
+                plt.plot(smoothed_loss,'b')
+        
+    return smoothed_losses
 
 def get_losses_from_attack(Total_Attack_Duration,attack_decel_rate,model,delete_file=False):
     

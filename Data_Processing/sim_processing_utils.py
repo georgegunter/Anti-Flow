@@ -7,7 +7,7 @@ import ray
 '''
 Functions for loading in timeseries data:
 '''
-def get_trajectory_timeseries(csv_path,warmup_period=0.0):
+def get_trajectory_timeseries(csv_path,warmup_period=0.0,want_print_finished_loading=True):
     row_num = 1
     curr_veh_id = 'id'
     sim_dict = {}
@@ -68,7 +68,8 @@ def get_trajectory_timeseries(csv_path,warmup_period=0.0):
         #Add the very last vehicle's information:
         sim_dict[curr_veh_id] = np.array(curr_veh_data).astype(float)
         end_time = time.time()
-        print('Data loaded, total time: '+str(end_time-begin_time))
+        if(want_print_finished_loading):
+            print('Data loaded, total time: '+str(end_time-begin_time))
         
 
     return sim_dict

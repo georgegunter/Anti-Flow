@@ -31,6 +31,16 @@ import Detectors.Deep_Learning.AutoEncoders.utils
 reload(Detectors.Deep_Learning.AutoEncoders.utils)
 from Detectors.Deep_Learning.AutoEncoders.utils import SeqDataset,train_epoch,eval_data,train_model
 
+
+
+from Detectors.Deep_Learning.AutoEncoders.utils import SeqDataset,train_epoch,eval_data,train_model,get_cnn_lstm_ae_model,make_train_X,sliding_window_mult_feat
+
+from Detectors.Deep_Learning.AutoEncoders.utils import get_loss_filter_indiv as loss_smooth
+
+from Detectors.Deep_Learning.AutoEncoders.cnn_lstm_ae import CNNRecurrentAutoencoder
+
+
+
 import torch
 
 # Anti-Flow specific functions for  detection:
@@ -435,4 +445,68 @@ def run_sim_with_attack(Total_Attack_Duration,attack_decel_rate,emission_path):
     file_path = os.path.join(os.getcwd(),sim_res_list_with_attack[1])
     
     return file_path 
+
+
+
+
+
+
+from detector_dev.Process_RingRoad_Simulation.get_rec_errors_normalized_single_lane import \
+get_trajectory_timeseries,filter_timeseries_dict_for_length,get_rec_errors_normalized
+
+import sys
+
+
+def get_rec_errors(emission_path,model,warmup_period=100):
+
+#     timeseries_dict = visualize_ring.get_sim_timeseries(emission_path,warmup_period=warmup_period)
+    
+    
+    timeseries_dict = get_trajectory_timeseries(csv_path=emission_path,
+        warmup_period=warmup_period)
+
+    timeseries_dict = filter_timeseries_dict_for_length(timeseries_dict,seq_len=100)
+    
+
+    veh_ids = list(timeseries_dict.keys())
+   
+    num_veh_processed = 0
+
+    testing_losses_dict = dict.fromkeys(veh_ids)
+
+    for veh_id in veh_ids:
+        timeseries_list = []
+        
+        speed = timeseries_dict[veh_id][:,1]
+        accel = np.gradient(speed,.1)
+        head_way = timeseries_dict[veh_id][:,2]
+        rel_vel = timeseries_dict[veh_id][:,3]
+        
+        timeseries_list.append([speed,accel,head_way,rel_vel])
+
+        timeseries_list = [speed,accel,head_way,rel_vel]
+
+        _,loss = sliding_window_mult_feat(model,timeseries_list)
+
+        testing_losses_dict[veh_id]=loss
+
+        num_veh_processed+=1
+
+        sys.stdout.write('\r'+'Vehicles processed: '+str(num_veh_processed)+'\r')
+
+    print('\n')
+    
+    smoothed_losses = dict.fromkeys(veh_ids)
+    time = timeseries_dict[veh_ids[0]][:,0]
+    
+    #Get smoothed loss values:
+    for veh_id in veh_ids:
+        loss = testing_losses_dict[veh_id]
+        smoothed_loss = loss_smooth(time,loss)
+            
+        smoothed_losses[veh_id] =  loss_smooth(time,loss)
+
+        
+    return smoothed_losses
+
 

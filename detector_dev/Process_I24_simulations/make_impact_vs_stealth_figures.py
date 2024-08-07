@@ -396,6 +396,65 @@ if __name__ == '__main__':
 
 		plt.savefig(figure_repo_path+"MLFW_impact_vs_stealth_all_metrics.png",bbox_inches='tight')
 
+
+
+
+	want_all_classification_res_thresh_only = True
+	if(want_all_classification_res_thresh_only):
+
+		fig = plt.figure(figsize=[45,20])
+
+		plt.subplot(2,3,1)
+		plt.plot(MTS_vals,f1_thresh,'.',markersize=30,label='Thresholding')
+		# _ = plt.xlabel('MTS [m/s]',fontsize=LABEL_FONTSIZE)
+		_ = plt.ylabel('F1',fontsize=LABEL_FONTSIZE+5)
+		_ = plt.yticks(fontsize=TICK_FONTSIZE)
+		_ = plt.xticks(fontsize=TICK_FONTSIZE)
+		_ = plt.ylim([-0.1,1])
+
+		plt.subplot(2,3,2)
+		plt.plot(MTS_vals,FP_number_thresh,'.',markersize=30,label='Thresholding')
+		# _ = plt.xlabel('MTS [m/s]',fontsize=LABEL_FONTSIZE)
+		_ = plt.ylabel('False positives',fontsize=LABEL_FONTSIZE+5)
+		_ = plt.locator_params(axis='y', nbins=8)
+		_ = plt.yticks(fontsize=TICK_FONTSIZE)
+		_ = plt.xticks(fontsize=TICK_FONTSIZE)
+
+		plt.subplot(2,3,3)
+		plt.plot(MTS_vals,TP_number_thresh,'.',markersize=30,label='Thresholding')
+		# _ = plt.xlabel('MTS [m/s]',fontsize=LABEL_FONTSIZE)
+		_ = plt.ylabel('True Positives',fontsize=LABEL_FONTSIZE+5)
+		_ = plt.yticks(fontsize=TICK_FONTSIZE)
+		_ = plt.xticks(fontsize=TICK_FONTSIZE)
+
+		plt.subplot(2,3,4)
+		plt.plot(MTS_vals,recall_vals_thresh,'.',markersize=30,label='Thresholding')
+		_ = plt.xlabel('MTS [m/s]',fontsize=LABEL_FONTSIZE+5)
+		_ = plt.ylabel('Recall',fontsize=LABEL_FONTSIZE+5)
+		_ = plt.yticks(fontsize=TICK_FONTSIZE)
+		_ = plt.xticks(fontsize=TICK_FONTSIZE)
+
+
+		plt.subplot(2,3,5)
+		plt.plot(MTS_vals,precision_vals_thresh,'.',markersize=30,label='Thresholding')
+		_ = plt.xlabel('MTS [m/s]',fontsize=LABEL_FONTSIZE+5)
+		_ = plt.ylabel('Precision',fontsize=LABEL_FONTSIZE+5)
+		_ = plt.yticks(fontsize=TICK_FONTSIZE)
+		_ = plt.xticks(fontsize=TICK_FONTSIZE)
+
+		plt.subplot(2,3,6)
+		plt.plot(MTS_vals,accuracy_vals_thresh,'.',markersize=30,label='Thresholding')
+		_ = plt.xlabel('MTS [m/s]',fontsize=LABEL_FONTSIZE+5)
+		_ = plt.ylabel('Accuracy',fontsize=LABEL_FONTSIZE+5)
+		_ = plt.yticks(fontsize=TICK_FONTSIZE)
+		_ = plt.xticks(fontsize=TICK_FONTSIZE)
+
+		plt.savefig(figure_repo_path+"MLFW_impact_vs_stealth_thresh_only_all_metrics.png",bbox_inches='tight')
+
+
+
+
+
 	########## SCATTER OF RELATIONSHIP BETWEEN IMPACTS: ##########
 
 	plt.figure(figsize=FIGURE_SIZE)

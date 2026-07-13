@@ -1,0 +1,179 @@
+import os
+import numpy as np
+import flow
+from copy import deepcopy
+import sys
+
+from Data_Processing.sim_processing_utils import get_trajectory_timeseries
+
+from hull_classification_utils import *
+
+hull_label_repo_path = '/Volumes/My Passport for Mac/Traffic_attack_sim_results/max_velocity/single_lane_ring_road_attack_monte_carlo_hull_labels'
+
+
+##### Utility functions for handling performance metrics: #####
+def get_attack_params(sim_name):
+	sim_params = []
+	j = 7
+	k = 7
+	while (sim_name[j] != '_'):j+=1
+	sim_params.append(float(sim_name[k:j]))
+
+	j += 4
+	k = j
+	while (sim_name[j] != '_'):j+=1
+	sim_params.append(float(sim_name[k:j]))
+
+	j += 4
+	k = j
+	while (sim_name[j] != '_'):j+=1
+	sim_params.append(float(sim_name[k:j]))
+
+	return np.array(sim_params)
+
+def get_performance_metrics_dict(performance_metrics_list_path):
+	performance_metrics_list = np.loadtxt(performance_metrics_list_path,delimiter=',',dtype=str)
+
+	performance_metrics_dict = {}
+	for datum in performance_metrics_list:
+		sim_name = datum[0]
+		performance_metrics_dict[sim_name] = np.array(datum[1:]).astype(float)
+
+	return performance_metrics_dict
+
+def get_performance_metrics_from_sim_names(sim_name_list,performance_metrics_dict):
+	performance_metrics_list = []
+	for sim_name in sim_name_list:
+		sim_params = get_attack_params(sim_name)
+		performance_metrics = performance_metrics_dict[sim_name]
+		datum = [sim_params[0],sim_params[1],sim_params[2],performance_metrics[0],performance_metrics[1],performance_metrics[2]]
+		performance_metrics_list.append(datum)
+
+	return np.array(performance_metrics_list)
+
+##### Utility functions for handling hull detection: #####
+
+def get_hull_labels(sim_name):
+	labels_path = os.path.join(hull_label_repo_path,sim_name)
+
+	hull_labels = np.loadtxt(labels_path,dtype=str,delimiter=',')
+
+	hull_labels_boolean = np.zeros(hull_labels.shape)
+
+	hull_labels_boolean[:,1] = hull_labels[:,1].astype(float)
+
+	for i in range(len(hull_labels)):
+		if('MVA' in hull_labels[i,0]):
+			hull_labels_boolean[i,0] = 1
+
+	return hull_labels_boolean
+
+def is_hull_complete_stealth(sim_name):
+	
+	hull_labels = get_hull_labels(sim_name)
+
+	is_complete_stealth = np.sum(np.logical_and(hull_labels[:,0],hull_labels[:,1])) == 0
+
+	return is_complete_stealth
+
+def get_all_hull_complete_stealth_attacks(all_sim_files):
+	complete_stealth_attacks = []
+	for sim_name in all_sim_files:
+		if(is_hull_complete_stealth(sim_name)):
+			complete_stealth_attacks.append(sim_name)
+
+	return complete_stealth_attacks
+
+
+
+
+
+if __name__ == '__main__':
+
+	# Load data:
+
+	files = os.listdir(hull_label_repo_path)
+
+	all_sim_files = []
+
+	for file in files:
+		if('.csv' in file):
+			all_sim_files.append(file)
+
+	complete_stealth_attacks = get_all_hull_complete_stealth_attacks(all_sim_files)
+
+
+
+	performance_metrics_list_path = '/Users/vanderbilt/Desktop/General_research_tools/Anti-Flow/detector_dev/Final_analysis/ring_road/performance_metrics_max_velocity.csv'
+
+	performance_metrics_dict = get_performance_metrics_dict(performance_metrics_list_path)
+
+	complete_stealth_performance_metrics_array = get_performance_metrics_from_sim_names(
+		sim_name_list=complete_stealth_attacks,
+		performance_metrics_dict=performance_metrics_dict)
+
+
+	all_attacks_performance_metrics_array = get_performance_metrics_from_sim_names(
+		sim_name_list=all_sim_files,
+		performance_metrics_dict=performance_metrics_dict)
+
+
+	want_figures = False
+
+	if(want_figures):
+		U_stealthy = complete_stealth_performance_metrics_array
+		U_all = all_attacks_performance_metrics_array
+
+		want_pareto_subplot = True
+		if(want_pareto_subplot):
+
+			fig = plt.figure(figsize=[20,5])
+
+			plt.subplot(1,3,1)
+			plt.plot(U_all[:,3],U_all[:,4],'r.',markersize=10,label='Detected')
+			plt.plot(U_stealthy[:,3],U_stealthy[:,4],'b.',markersize=20,label='Complete stealth')
+			plt.legend(fontsize=15)
+			
+			plt.xlabel('MTS [m/s]',fontsize=20)
+			plt.ylabel('TSV [m/s]',fontsize=20)
+			plt.xticks(fontsize=20)
+			plt.yticks(fontsize=20)
+			plt.ylim([5.0,17.0])
+			plt.xlim([4.5,7.5])
+			plt.grid()
+
+			plt.subplot(1,3,2)
+			plt.plot(U_all[:,3],U_all[:,5],'r.',markersize=10,label='Detected')
+			plt.plot(U_stealthy[:,3],U_stealthy[:,5],'b.',markersize=20,label='Complete stealth')
+			# plt.legend(fontsize=20)
+			
+			plt.xlabel('MTS [m/s]',fontsize=20)
+			plt.ylabel('Energy [grams/s]',fontsize=20)
+			plt.xticks(fontsize=20)
+			plt.yticks(fontsize=20)
+			plt.ylim([.6,1.5])
+			plt.xlim([4.5,7.5])
+			plt.grid()
+
+			plt.subplot(1,3,3)
+			plt.plot(U_all[:,4],U_all[:,5],'r.',markersize=10,label='Detected')
+			plt.plot(U_stealthy[:,4],U_stealthy[:,5],'b.',markersize=20,label='Complete stealth')
+			# plt.legend(fontsize=20)
+			
+			plt.xlabel('TSV [m/s]',fontsize=20)
+			plt.ylabel('Energy [grams/s]',fontsize=20)
+			plt.xticks(fontsize=20)
+			plt.yticks(fontsize=20)
+			plt.xlim([5.0,17.0])
+			plt.ylim([.6,1.5])
+			plt.grid()
+
+			plt.savefig('figures/ring_complete_stealth_AE_mpvre_pareto.pdf',bbox_inches='tight')
+
+			# plt.show()
+
+
+
+
+
+

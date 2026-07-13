@@ -493,7 +493,7 @@ class ACC_comp_overwrite_Vm(BaseController):
     def __init__(self,
                  veh_id,
                  car_following_params,
-                 V_m_comp, #maximum speed from compromise
+                 V_m_comp=10, #maximum speed from compromise
                  k_1=1.0,
                  k_2=1.0,
                  V_m=30,

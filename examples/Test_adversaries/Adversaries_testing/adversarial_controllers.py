@@ -1,4 +1,4 @@
-import numpy as np
+import numpy as npa
 from copy import deepcopy
 from Adversaries.controllers.base_controller import BaseController
 
@@ -82,8 +82,6 @@ class ACC_Benign(BaseController):
         """See parent class."""
         # Not implemented...
         return self.a
-
-
 
 class ACC_comp_overwrite_Vm(BaseController):
     def __init__(self,

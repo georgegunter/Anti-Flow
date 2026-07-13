@@ -285,7 +285,7 @@ def rename_file(file_path,file_name_no_version,emission_path):
 
 
 def get_file_name_no_version(Total_Attack_Duration,attack_vmax,ring_length=600):
-    file_name_no_version = 'ring_'+str(ring_length)+'m_single_lane_TAD_'+str(Total_Attack_Duration)+'_vmcomp_'+str(attack_vmax)
+    file_name_no_version = 'ring_'+str(ring_length)+'m_double_lane_TAD_'+str(Total_Attack_Duration)+'_vmcomp_'+str(attack_vmax)
     return file_name_no_version
 
 

@@ -29,16 +29,16 @@ import flow.config as config
 from flow.envs import TestEnv
 
 #Needed for i24 network:
-from flow.networks.I24_Subnetwork_test_merge import I24SubNetwork
-from flow.networks.I24_Subnetwork_test_merge import EDGES_DISTRIBUTION
+from flow.networks.I24_subnetwork import I24SubNetwork
+from flow.networks.I24_subnetwork import EDGES_DISTRIBUTION
 
 #For running a simulation:
 from flow.core.experiment import Experiment
 
 # For procesing results:
-from load_sim_results import get_sim_results_csv
-from load_sim_results import write_results_to_csv
-from load_sim_results import get_all_params
+# from load_sim_results import get_sim_results_csv
+# from load_sim_results import write_results_to_csv
+# from load_sim_results import get_all_params
 
 # Ray for parrallelization:
 import ray
@@ -609,11 +609,11 @@ def iter_run(attack_duration_list,
 										
 if __name__ == "__main__":
 
-		#Allows to quickly swap between a few different simulation scenarios:
-	want_run_single_sim = True
+	#Allows to quickly swap between a few different simulation scenarios:
+	want_run_single_sim = False
 	want_attack_sweep = False
 	want_param_sweep_multi_run = False
-	want_param_sweep_single = False
+	want_param_sweep_single = True
 	want_param_sweep_single_benign = False
 
 	if(want_attack_sweep):

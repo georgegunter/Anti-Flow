@@ -48,17 +48,6 @@ def get_MTS_and_MTG(trajectory_dict):
 
 
 
-
-
-# @ray.remote
-# def get_relevant_data_ray(file_path):
-# 	trajectory_dict = get_trajectory_timeseries(file_path,warmup_period=WARMUP_TIME,want_print_finished_loading=False)
-# 	mean_traffic_speed,min_TTC = get_MTS_and_MTTC(trajectory_dict)
-# 	sim_name = get_sim_name(file_path)
-# 	print(sim_name+' : '+str(mean_traffic_speed)+', '+str(min_TTC))
-
-# 	return [sim_name,mean_traffic_speed,min_TTC]
-
 def get_relevant_data(file_path):
 	trajectory_dict = get_trajectory_timeseries(file_path,warmup_period=WARMUP_TIME,want_print_finished_loading=False)
 
@@ -101,7 +90,7 @@ if __name__ == '__main__':
 	# NOTE: need to refactor to not include attacking vehicles in calculations.
 
 
-	sim_repo_path = '/Volumes/My Passport for Mac/single_lane_ring_road_sweep_ring_length'
+	sim_repo_path = '/Volumes/My Passport for Mac/Traffic_attack_sim_results/RDA/single_lane_ring_road_sweep_ring_length'
 
 	all_files_in_sim_repo = os.listdir(sim_repo_path)
 

@@ -281,7 +281,7 @@ def stack_data_for_spacetime(sim_data_dict,
 		temp_veh_data = np.array(sim_data_dict[veh_id]) 
 		time = temp_veh_data[:,0].astype(float) 
 		ring_pos = ring_positions[veh_id]
-		speed = temp_veh_data[:,4].astype(float) 
+		speed = temp_veh_data[:,5].astype(float) 
 
 		for i in range(len(time)): 
 			times_list.append(time[i]) 

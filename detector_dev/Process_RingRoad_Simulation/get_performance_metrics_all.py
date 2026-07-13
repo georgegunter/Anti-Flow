@@ -60,7 +60,7 @@ def get_MTS_and_MTG(trajectory_dict):
 # 	return [sim_name,mean_traffic_speed,min_TTC]
 
 def get_relevant_data(file_path):
-	trajectory_dict = get_trajectory_timeseries(file_path,warmup_period=WARMUP_TIME,want_print_finished_loading=False)
+	trajectory_dict = get_trajectory_timeseries(file_path,warmup_period=100.0,want_print_finished_loading=False)
 
 	mean_traffic_speed = get_mean_traffic_speed_ring(trajectory_dict=trajectory_dict)
 
@@ -100,9 +100,17 @@ if __name__ == '__main__':
 
 	want_process_single_lane_param_sweep = True
 	if(want_process_single_lane_param_sweep):
-		print('Processing single lane parameter sweep')
+		print('Processing single lane parameter sweep:')
 
-		sim_repo_path = '/Volumes/My Passport for Mac/single_lane_ring_road_attack_parameter_sweep'
+		# sim_repo_path = '/Volumes/My Passport for Mac/single_lane_ring_road_attack_parameter_sweep'
+
+		# sim_repo_path = '/Volumes/My Passport for Mac/Traffic_attack_sim_results/Radar_warp/single_lane_ring_road_attack_parameter_sweep'
+
+		# sim_repo_path = '/Volumes/My Passport for Mac/Traffic_attack_sim_results/max_velocity/single_lane_ring_road_attack_parameter_sweep'
+
+		sim_repo_path = '/Volumes/My Passport for Mac/Traffic_attack_sim_results/benign_single_lane_ring'
+
+		print(sim_repo_path)
 
 		all_files_in_sim_repo = os.listdir(sim_repo_path)
 
@@ -132,9 +140,17 @@ if __name__ == '__main__':
 
 	want_process_double_lane_param_sweep = True
 	if(want_process_double_lane_param_sweep):
-		print('Processing double lane parameter sweep')
+		print('Processing double lane parameter sweep: ')
 
-		sim_repo_path = '/Volumes/My Passport for Mac/double_lane_ring_road_attack_parameter_sweep'
+		# sim_repo_path = '/Volumes/My Passport for Mac/double_lane_ring_road_attack_parameter_sweep'
+
+		# sim_repo_path = '/Volumes/My Passport for Mac/Traffic_attack_sim_results/Radar_warp/double_lane_ring_road_attack_parameter_sweep'
+
+		# sim_repo_path = '/Volumes/My Passport for Mac/Traffic_attack_sim_results/max_velocity/double_lane_ring_road_attack_parameter_sweep'
+
+		sim_repo_path = '/Volumes/My Passport for Mac/Traffic_attack_sim_results/benign_double_lane_ring'
+
+		print(sim_repo_path)
 
 		all_files_in_sim_repo = os.listdir(sim_repo_path)
 
@@ -160,7 +176,7 @@ if __name__ == '__main__':
 				writer.writerow(impact)
 
 
-	want_process_length_sweep = True
+	want_process_length_sweep = False
 
 	if(want_process_length_sweep):
 
